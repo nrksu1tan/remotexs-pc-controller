@@ -36,6 +36,8 @@
             overflow: hidden;
             display: flex; flex-direction: column;
             overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* --- ФОН --- */
@@ -487,6 +489,7 @@
                             const u = `url('data:image/png;base64,${res.cover}')`;
                             document.getElementById('art').style.backgroundImage = u;
                             document.getElementById('cover-bg').style.backgroundImage = u;
+                            document.getElementById('cover-bg').style.filter = 'blur(60px)';
                             document.getElementById('cover-bg').style.opacity = 0.3; 
                         }
 
@@ -495,7 +498,7 @@
                 }
             } catch { document.getElementById('status-dot').classList.remove('online'); }
         }
-        setInterval(ping, 2000);
+        setInterval(ping, 400);
     </script>
 </body>
 </html>

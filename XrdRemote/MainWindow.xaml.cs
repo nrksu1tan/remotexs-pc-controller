@@ -9,8 +9,10 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Linq;
 using System.Windows.Media.Imaging;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
@@ -184,13 +186,14 @@ private void InitializeTrayIcon()
             }
         }
 
-        private async void HandleRequest(HttpListenerContext context)
+private async void HandleRequest(HttpListenerContext context)
         {
             string rawUrl = context.Request.RawUrl;
             string method = context.Request.HttpMethod;
             string response = "{}";
             int code = 200;
             string contentType = "application/json";
+            byte[] responseBytes = null; // Буфер для ответа
 
             context.Response.AppendHeader("Access-Control-Allow-Origin", "*");
             context.Response.AppendHeader("Access-Control-Allow-Methods", "POST, GET");
@@ -221,21 +224,18 @@ private void InitializeTrayIcon()
                         var json = await r.ReadToEndAsync();
                         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                         var cmd = JsonSerializer.Deserialize<CommandData>(json, options);
-
                         Application.Current.Dispatcher.Invoke(() => ExecuteCommand(cmd));
                     }
                 }
                 else
                 {
-                    string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "index.html");
-                    if (File.Exists(filePath))
+                    // --- ГЛАВНОЕ ИЗМЕНЕНИЕ: ЧИТАЕМ ИЗ РЕСУРСОВ ---
+                    // Если запрашивают сайт (корень), отдаем встроенный HTML
+                    string html = GetEmbeddedSite();
+                    if (!string.IsNullOrEmpty(html))
                     {
-                        byte[] f = File.ReadAllBytes(filePath);
-                        context.Response.ContentType = "text/html";
-                        context.Response.ContentLength64 = f.Length;
-                        context.Response.OutputStream.Write(f, 0, f.Length);
-                        context.Response.OutputStream.Close();
-                        return;
+                        contentType = "text/html";
+                        responseBytes = Encoding.UTF8.GetBytes(html);
                     }
                 }
             }
@@ -245,16 +245,52 @@ private void InitializeTrayIcon()
                 response = JsonSerializer.Serialize(new { error = ex.Message });
             }
 
-            byte[] buf = Encoding.UTF8.GetBytes(response);
+            // Если байты не были сформированы (например, это JSON ответ), кодируем строку response
+            if (responseBytes == null)
+            {
+                responseBytes = Encoding.UTF8.GetBytes(response);
+            }
+
             context.Response.ContentType = contentType;
             context.Response.StatusCode = code;
-            context.Response.ContentLength64 = buf.Length;
-            context.Response.OutputStream.Write(buf, 0, buf.Length);
+            context.Response.ContentLength64 = responseBytes.Length;
+            context.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
             context.Response.OutputStream.Close();
         }
 
-        // --- ЛОГИКА ---
+        // --- НОВЫЙ МЕТОД: ДОСТАЕТ САЙТ ИЗ EXE ---
+private string GetEmbeddedSite()
+{
+    try
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        
+        // --- МАГИЯ: Ищем ресурс автоматически ---
+        // Получаем список ВСЕХ зашитых файлов и берем первый, который кончается на index.html
+        string resourceName = assembly.GetManifestResourceNames()
+                                      .FirstOrDefault(str => str.EndsWith("index.html"));
 
+        if (string.IsNullOrEmpty(resourceName)) 
+        {
+            // Если всё еще не находит, выводим список того, что есть (для отладки)
+            string allResources = string.Join(", ", assembly.GetManifestResourceNames());
+            return $"<h1>Error: index.html not found. Available: {allResources}</h1>";
+        }
+
+        using (var stream = assembly.GetManifestResourceStream(resourceName))
+        {
+            if (stream == null) return "<h1>Error: Stream is null</h1>";
+            using (var reader = new StreamReader(stream))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        return $"<h1>Error: {ex.Message}</h1>";
+    }
+}
         private List<MixerItem> GetMixerData()
         {
             var list = new List<MixerItem>();

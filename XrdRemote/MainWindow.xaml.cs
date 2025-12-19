@@ -266,6 +266,12 @@ private async void HandleRequest(HttpListenerContext context)
                         contentType = "text/html";
                         responseBytes = Encoding.UTF8.GetBytes(html);
                     }
+                    else 
+                    {
+                        context.Response.StatusCode = 404;
+                        context.Response.Close();
+                        return;
+                    }
                 }
             }
             catch (Exception ex)

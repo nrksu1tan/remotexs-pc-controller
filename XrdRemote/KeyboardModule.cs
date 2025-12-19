@@ -204,10 +204,13 @@ namespace XrdRemote
 </head>
 <body>
     <div id='rotator'>
-        <div class='bar'>
-            <a href='/' class='btn-x'>DISCONNECT</a>
-            <span style='color:#666; font-size:10px;'>XRD REMOTE v2.0</span>
-        </div>
+<div class='bar'>
+    <div onclick=""window.location.href='/'"" class='btn-x' style=""cursor:pointer;"">
+        BACK TO REMOTE
+    </div>
+    <span style='color:#666; font-size:10px;'>XRD REMOTE v2.0</span>
+</div>
+        
         <div class='kb' id='kb'></div>
     </div>
 

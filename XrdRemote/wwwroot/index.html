@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>RemoteXS</title>
-    
+
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
@@ -34,7 +36,8 @@
             margin: 0;
             height: 100dvh;
             overflow: hidden;
-            display: flex; flex-direction: column;
+            display: flex;
+            flex-direction: column;
             overscroll-behavior: none;
             user-select: none;
             -webkit-user-select: none;
@@ -42,217 +45,499 @@
 
         /* --- ФОН --- */
         .bg-layer {
-            position: absolute; inset: 0; z-index: -2;
+            position: absolute;
+            inset: 0;
+            z-index: -2;
             background: #000;
         }
-        
+
         .cover-bg {
-            position: absolute; inset: 0; z-index: -1;
-            background-size: cover; background-position: center;
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background-size: cover;
+            background-position: center;
             /* Затемнение обложки */
-            filter: blur(60px) brightness(0.25) saturate(1.2); 
-            opacity: 0; transition: opacity 1.5s ease;
+            filter: blur(60px) brightness(0.25) saturate(1.2);
+            opacity: 0;
+            transition: opacity 1.5s ease;
             transform: scale(1.1);
         }
 
         /* --- LAYOUT --- */
         .app-layout {
-            display: flex; flex-direction: column;
+            display: flex;
+            flex-direction: column;
             height: 100%;
             padding-top: max(10px, var(--safe-top));
         }
 
         /* HEADER */
         .header {
-            flex-shrink: 0; height: 50px;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 24px; z-index: 10;
+            flex-shrink: 0;
+            height: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 10;
         }
+
         .logo {
-            font-size: 14px; font-weight: 700; letter-spacing: 1px; color: #555;
-            display: flex; align-items: center; gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .status-dot { width: 6px; height: 6px; background: #333; border-radius: 50%; transition: 0.3s; }
-        .status-dot.online { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #333;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .status-dot.online {
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
 
         /* CONTENT */
         .content-area {
-            flex: 1; position: relative; width: 100%;
-            overflow: hidden; 
+            flex: 1;
+            position: relative;
+            width: 100%;
+            overflow: hidden;
         }
 
         .view {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column;
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
             padding: 10px 24px;
-            opacity: 0; pointer-events: none; transform: scale(0.98);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.98);
             transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        .view.active { opacity: 1; pointer-events: all; transform: scale(1); }
+
+        .view.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
 
         /* --- MEDIA TAB --- */
         .art-container {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            min-height: 0; margin-bottom: 20px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            margin-bottom: 20px;
         }
+
         .art-box {
-            width: 100%; max-width: 340px; aspect-ratio: 1;
-            background: #111; border-radius: 20px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
-            background-size: cover; background-position: center;
-            border: 1px solid rgba(255,255,255,0.05);
+            width: 100%;
+            max-width: 340px;
+            aspect-ratio: 1;
+            background: #111;
+            border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            background-size: cover;
+            background-position: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .apple-transition {
             transition: opacity 0.4s ease, filter 0.4s ease;
-            opacity: 1; filter: blur(0px);
+            opacity: 1;
+            filter: blur(0px);
         }
+
         .apple-transition.changing {
-            opacity: 0; filter: blur(20px);
+            opacity: 0;
+            filter: blur(20px);
         }
 
-        .media-controls { 
-            margin-top: auto; 
-            padding-bottom: calc(80px + var(--safe-bottom)); 
+        .media-controls {
+            margin-top: auto;
+            padding-bottom: calc(80px + var(--safe-bottom));
         }
 
-        .track-info { text-align: center; margin-bottom: 25px; }
-        .t-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .t-artist { font-size: 16px; color: var(--text-sec); }
+        .track-info {
+            text-align: center;
+            margin-bottom: 25px;
+        }
 
-        .controls-row { display: flex; justify-content: center; gap: 35px; align-items: center; margin-bottom: 25px; }
-        .btn-icon { color: white; opacity: 0.8; transition: 0.2s; cursor: pointer; display: flex; justify-content: center; align-items: center;}
-        .btn-icon:active { transform: scale(0.85); opacity: 1; }
-        .play-btn { 
-            width: 70px; height: 70px; background: white; color: black; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 20px rgba(255,255,255,0.1);
+        .t-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .t-artist {
+            font-size: 16px;
+            color: var(--text-sec);
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            gap: 35px;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .btn-icon {
+            color: white;
+            background: #00000042;
+            padding: 10px 35px 10px 35px;
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            opacity: 0.8;
+            transition: 0.2s;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-icon:active {
+            transform: scale(0.85);
+            opacity: 1;
+        }
+
+        .play-btn {
+            width: 70px;
+            height: 70px;
+            background: white;
+            color: black;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 20px rgba(255, 255, 255, 0.1);
             transition: 0.2s;
         }
-        .play-btn:active { transform: scale(0.9); background: #ddd; }
+
+        .play-btn:active {
+            transform: scale(0.9);
+            background: #ddd;
+        }
 
         /* --- NEW VOLUME CONTROL --- */
         .volume-container {
-            display: flex; gap: 12px; align-items: center;
-            background: rgba(255,255,255,0.06); 
-            padding: 8px; border-radius: 40px;
+            display: flex;
+            gap: 12px;
+            backdrop-filter: blur(20px);
+            align-items: center;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 8px;
+            border-radius: 40px;
             height: 64px;
         }
 
         .mute-btn {
-            width: 48px; height: 48px; border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            display: flex; align-items: center; justify-content: center;
-            color: white; flex-shrink: 0;
-            transition: 0.2s; cursor: pointer;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+            transition: 0.2s;
+            cursor: pointer;
         }
-        .mute-btn:active { background: rgba(255,0,0,0.5); transform: scale(0.95); }
+
+        .mute-btn:active {
+            background: rgba(255, 0, 0, 0.5);
+            transform: scale(0.95);
+        }
 
         .vol-slider-wrapper {
-            flex: 1; position: relative; display: flex; align-items: center;
-            height: 100%; padding: 0 10px;
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            padding: 0 10px;
         }
 
         /* Стиль слайдера громкости */
         input[type=range].main-vol {
-            width: 100%; height: 100%; -webkit-appearance: none; background: transparent; 
-            touch-action: none; margin: 0; position: relative; z-index: 2;
+            width: 100%;
+            height: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+            touch-action: none;
+            margin: 0;
+            position: relative;
+            z-index: 2;
         }
+
         /* Дорожка */
         input[type=range].main-vol::-webkit-slider-runnable-track {
-            height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; border: none;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            border: none;
         }
+
         /* Ползунок (делаем его больше для удобства) */
         input[type=range].main-vol::-webkit-slider-thumb {
-            -webkit-appearance: none; 
-            width: 28px; height: 28px; 
-            background: white; border-radius: 50%; 
-            margin-top: -11px; /* центровка: (6 - 28) / 2 */
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border-radius: 50%;
+            margin-top: -11px;
+            /* центровка: (6 - 28) / 2 */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
-        .vol-icon-left { margin-right: 10px; color: #888; }
-        .vol-icon-right { margin-left: 10px; color: white; }
+        .vol-icon-left {
+            margin-right: 10px;
+            color: #888;
+        }
+
+        .vol-icon-right {
+            margin-left: 10px;
+            color: white;
+        }
 
         /* --- MOUSE TAB --- */
-        #tab-mouse { 
-            touch-action: none; 
+        #tab-mouse {
+            touch-action: none;
             padding-bottom: calc(90px + var(--safe-bottom));
         }
+
         .pad-area {
-            flex: 1; background: rgba(255,255,255,0.03);
-            border-radius: 24px; border: 1px solid rgba(255,255,255,0.05);
-            margin-bottom: 20px; position: relative;
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 20px;
+            position: relative;
         }
+
         .pad-area::after {
-            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 4px; height: 4px; background: #333; border-radius: 50%;
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: #333;
+            border-radius: 50%;
         }
-        .mouse-row { display: flex; gap: 15px; height: 70px; flex-shrink: 0; }
+
+        .mouse-row {
+            display: flex;
+            gap: 15px;
+            height: 70px;
+            flex-shrink: 0;
+        }
+
         .m-btn {
-            flex: 1; background: rgba(255,255,255,0.08); border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600; color: #ccc; transition: 0.1s;
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #ccc;
+            transition: 0.1s;
         }
-        .m-btn:active { background: white; color: black; }
+
+        .m-btn:active {
+            background: white;
+            color: black;
+        }
 
         /* --- MIXER TAB --- */
         #tab-mixer {
-            overflow-y: scroll; -webkit-overflow-scrolling: touch; touch-action: pan-y;
-            padding-bottom: 120px; padding-top: 10px;
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            padding-bottom: 120px;
+            padding-top: 10px;
         }
-        .mixer-title { font-size: 28px; font-weight: 800; margin-bottom: 20px; padding-left: 5px; }
-        .mix-item {
-            display: flex; align-items: center; gap: 16px;
-            background: rgba(255,255,255,0.05); padding: 14px 18px;
-            border-radius: 20px; margin-bottom: 12px;
-        }
-        .app-img { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; background: #222; padding: 4px; }
-        .app-ph { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: #555; }
-        .app-name { flex: 1; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        /* Слайдеры в микшере (тонкие) */
-        input[type=range].mix-vol { width: 110px; -webkit-appearance: none; background: transparent; touch-action: none; }
-        input[type=range].mix-vol::-webkit-slider-runnable-track { height: 10px; background: rgba(255,255,255,0.1); border-radius: 20px; }
-        input[type=range].mix-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: white; margin-top: -5px; border-radius: 50%; box-shadow: 0 2px 8px black; }
 
-/* --- DOCK (IMPROVED) --- */
-        .dock-wrapper {
-            position: fixed; bottom: max(20px, var(--safe-bottom));
-            left: 0; right: 0; display: flex; justify-content: center;
-            pointer-events: none; z-index: 100;
+        .mixer-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            padding-left: 5px;
         }
+
+        .mix-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+
+        .app-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #222;
+            padding: 4px;
+        }
+
+        .app-ph {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+        }
+
+        .app-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Слайдеры в микшере (тонкие) */
+        input[type=range].mix-vol {
+            width: 110px;
+            -webkit-appearance: none;
+            background: transparent;
+            touch-action: none;
+        }
+
+        input[type=range].mix-vol::-webkit-slider-runnable-track {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        input[type=range].mix-vol::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            margin-top: -5px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px black;
+        }
+
+        /* --- DOCK (IMPROVED) --- */
+        .dock-wrapper {
+            position: fixed;
+            bottom: max(10px, var(--safe-bottom));
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+
         .dock {
             pointer-events: auto;
             background: #0000003d;
-            backdrop-filter: blur(15px) saturate(150%); -webkit-backdrop-filter: blur(40px) saturate(150%);
-            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(15px) saturate(150%);
+            -webkit-backdrop-filter: blur(40px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             padding: 4px;
             border-radius: 100px;
-            display: flex; gap: 20px; 
-            box-shadow: 0 30px 70px rgba(0,0,0,0.6);
+            display: flex;
+            gap: 20px;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
         }
+
         .dock-btn {
-            width: 54px; height: 54px;
-            display: flex; align-items: center; justify-content: center;
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: #666;
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             position: relative;
         }
-        .dock-btn:active { transform: scale(0.9) !important; }
+
+        .dock-btn:active {
+            transform: scale(0.9) !important;
+        }
 
         .dock-btn.active {
-            background: transparent; 
-            color: var(--primary); 
+            background: transparent;
+            color: var(--primary);
             filter: drop-shadow(0 0 10px var(--primary));
         }
-        .dock-btn i { width: 26px; height: 26px; }
+
+        .dock-btn i {
+            width: 26px;
+            height: 26px;
+        }
+
         /* --- SETUP --- */
-        #setup { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #setup.hidden { display: none; }
-        .ip-inp { background: #222; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; font-size: 18px; text-align: center; margin-bottom: 20px; width: 250px; outline: none; font-family: monospace; }
-        .con-btn { background: white; border: none; padding: 12px 40px; border-radius: 30px; font-weight: 700; font-size: 16px; }
+        #setup {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #setup.hidden {
+            display: none;
+        }
+
+        .ip-inp {
+            background: #222;
+            border: 1px solid #333;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 20px;
+            width: 250px;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .con-btn {
+            background: white;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 16px;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="bg-layer"></div>
@@ -263,18 +548,19 @@
             <div class="logo">
                 <div id="status-dot" class="status-dot"></div> RemoteXS Ping
             </div>
-            <div onclick="document.getElementById('setup').classList.remove('hidden')" style="padding:10px; opacity:0.6;">
+            <div onclick="document.getElementById('setup').classList.remove('hidden')"
+                style="padding:10px; opacity:0.6;">
                 <i data-lucide="settings" width="22"></i>
             </div>
         </div>
 
         <div class="content-area">
-            
+
             <div id="tab-media" class="view active">
                 <div class="art-container">
                     <div id="art" class="art-box apple-transition"></div>
                 </div>
-                
+
                 <div class="media-controls">
                     <div class="track-info">
                         <div id="track" class="t-title apple-transition">Not Playing</div>
@@ -283,21 +569,23 @@
 
                     <div class="controls-row">
                         <div class="btn-icon" ontouchend="send('prev')"><i data-lucide="skip-back" width="36"></i></div>
-                        <div class="play-btn" ontouchend="send('play_pause')"><i data-lucide="play" width="32" fill="black"></i></div>
-                        <div class="btn-icon" ontouchend="send('next')"><i data-lucide="skip-forward" width="36"></i></div>
+                        <div class="play-btn" ontouchend="send('play_pause')"><i data-lucide="play" width="32"
+                                fill="black"></i></div>
+                        <div class="btn-icon" ontouchend="send('next')"><i data-lucide="skip-forward" width="36"></i>
+                        </div>
                     </div>
 
                     <div class="volume-container">
                         <div class="mute-btn" ontouchend="send('mute')">
                             <i data-lucide="volume-x" width="24"></i>
                         </div>
-                        
+
                         <div class="vol-slider-wrapper">
                             <i data-lucide="volume-1" width="18" class="vol-icon-left"></i>
-                            
-                            <input type="range" class="main-vol" min="0" max="100" 
-                                   oninput="send('set_vol', {id: -1, vol: parseInt(this.value)})">
-                                   
+
+                            <input type="range" class="main-vol" min="0" max="100"
+                                oninput="send('set_vol', {id: -1, vol: parseInt(this.value)})">
+
                             <i data-lucide="volume-2" width="18" class="vol-icon-right"></i>
                         </div>
                     </div>
@@ -327,7 +615,8 @@
         <div class="dock">
             <div class="dock-btn active" onclick="go('media', this)"><i data-lucide="music"></i></div>
             <div class="dock-btn" onclick="go('mouse', this)"><i data-lucide="mouse-pointer-2"></i></div>
-            <div class="dock-btn" onclick="go('mixer', this); loadMixer();"><i data-lucide="sliders-horizontal"></i></div>
+            <div class="dock-btn" onclick="go('mixer', this); loadMixer();"><i data-lucide="sliders-horizontal"></i>
+            </div>
             <div class="dock-btn" onclick="location.href='/keyboard'"><i data-lucide="keyboard"></i></div>
         </div>
     </div>
@@ -339,12 +628,12 @@
         <div style="position: absolute; bottom: 20px; color:#444; font-size:12px;">RemoteXS v1.0</div>
     </div>
 
-<script>
+    <script>
         lucide.createIcons();
         document.addEventListener('gesturestart', e => e.preventDefault());
 
         let ip = localStorage.getItem('xrd_ip');
-        if(!ip) document.getElementById('setup').classList.remove('hidden');
+        if (!ip) document.getElementById('setup').classList.remove('hidden');
         else document.getElementById('ip').value = ip;
 
         // Флаг: держит ли пользователь слайдер прямо сейчас?
@@ -360,54 +649,54 @@
 
         function go(name, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('tab-'+name).classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
             document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
-            if(navigator.vibrate) navigator.vibrate(5);
+            if (navigator.vibrate) navigator.vibrate(5);
         }
 
-        async function send(cmd, data={}) {
-            if(!ip) return;
-            try { await fetch(`http://${ip}/command`, { method:'POST', body:JSON.stringify({cmd, ...data}) }); } catch{}
+        async function send(cmd, data = {}) {
+            if (!ip) return;
+            try { await fetch(`http://${ip}/command`, { method: 'POST', body: JSON.stringify({ cmd, ...data }) }); } catch { }
         }
 
         // --- TRACKPAD LOGIC ---
         const pad = document.getElementById('trackpad');
-        let lx=0, ly=0, lastTouchCount=0;
+        let lx = 0, ly = 0, lastTouchCount = 0;
 
         pad.addEventListener('touchstart', e => {
             const t = e.touches[0];
             lx = t.clientX; ly = t.clientY;
             lastTouchCount = e.touches.length;
-        }, {passive:false});
+        }, { passive: false });
 
         pad.addEventListener('touchend', e => {
-            if(e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+            if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
             lastTouchCount = e.touches.length;
         });
 
         pad.addEventListener('touchmove', e => {
-            if(e.cancelable) e.preventDefault();
-            if(e.touches.length !== lastTouchCount) {
+            if (e.cancelable) e.preventDefault();
+            if (e.touches.length !== lastTouchCount) {
                 lastTouchCount = e.touches.length;
-                if(e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+                if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
                 return;
             }
 
-            if(e.touches.length === 2) {
+            if (e.touches.length === 2) {
                 const cy = e.touches[0].clientY;
-                const dy = -(cy - ly) * 2.5; 
-                if(Math.abs(dy) > 1) send('scroll', {y: dy});
+                const dy = -(cy - ly) * 2.5;
+                if (Math.abs(dy) > 1) send('scroll', { y: dy });
                 ly = cy;
-            } else if(e.touches.length === 1) {
+            } else if (e.touches.length === 1) {
                 const cx = e.touches[0].clientX;
                 const cy = e.touches[0].clientY;
-                const dx = (cx - lx) * 2.0; 
+                const dx = (cx - lx) * 2.0;
                 const dy = (cy - ly) * 2.0;
-                if(Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) send('mouse_move', {x:dx, y:dy});
+                if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) send('mouse_move', { x: dx, y: dy });
                 lx = cx; ly = cy;
             }
-        }, {passive:false});
+        }, { passive: false });
 
         // --- СЛАЙДЕРЫ (Обработка касаний) ---
         // Чтобы слайдер не обновлялся сервером, пока мы его тянем
@@ -415,10 +704,10 @@
             const sliders = document.querySelectorAll('input[type=range]');
             sliders.forEach(sl => {
                 sl.addEventListener('touchstart', () => { isDragging = true; });
-                sl.addEventListener('touchend', () => { 
-                    isDragging = false; 
+                sl.addEventListener('touchend', () => {
+                    isDragging = false;
                     // Небольшая задержка, чтобы ping не дернул слайдер сразу после отпускания
-                    setTimeout(() => isDragging = false, 1000); 
+                    setTimeout(() => isDragging = false, 1000);
                 });
                 sl.addEventListener('mousedown', () => { isDragging = true; }); // Для ПК тестов
                 sl.addEventListener('mouseup', () => { isDragging = false; });
@@ -429,17 +718,17 @@
         window.onload = setupSliderEvents;
 
         async function loadMixer() {
-            if(!ip) return;
+            if (!ip) return;
             const list = document.getElementById('mixer-list');
             try {
-                const apps = await fetch(`http://${ip}/mixer`).then(r=>r.json());
+                const apps = await fetch(`http://${ip}/mixer`).then(r => r.json());
                 list.innerHTML = '';
                 apps.forEach(app => {
                     const div = document.createElement('div');
                     div.className = 'mix-item';
-                    let iconHtml = app.icon 
+                    let iconHtml = app.icon
                         ? `<img src="data:image/png;base64,${app.icon}" class="app-img">`
-                        : `<div class="app-ph"><i data-lucide="${app.pid===-1 ? 'speaker' : 'cpu'}" width="20"></i></div>`;
+                        : `<div class="app-ph"><i data-lucide="${app.pid === -1 ? 'speaker' : 'cpu'}" width="20"></i></div>`;
 
                     div.innerHTML = `
                         ${iconHtml}
@@ -456,49 +745,57 @@
         }
 
         let currentTitle = "";
-        
+        let lastTitle = "";
+        let lastPlayingState = null; // Чтобы не дергать иконки зря
+
         async function ping() {
-            if(!ip) return;
+            if (!ip) return;
             try {
-                const res = await fetch(`http://${ip}/ping`).then(r=>r.json());
+                const res = await fetch(`http://${ip}/ping`).then(r => r.json());
                 document.getElementById('status-dot').classList.add('online');
-                
-                // --- СИНХРОНИЗАЦИЯ ГРОМКОСТИ ---
-                // Обновляем главный слайдер, ТОЛЬКО если палец не на экране
-                const mainSlider = document.querySelector('.main-vol');
-                if (mainSlider && !isDragging && res.volume !== undefined) {
-                    mainSlider.value = res.volume;
-                }
-                // -------------------------------
 
+                // --- ЛОГИКА ТЕКСТА И ОБЛОЖКИ ---
                 const p = res.window.split(' • ');
-                const newTitle = p[0] || "Not Playing";
-                const newArtist = p[1] || "";
-
-                if(newTitle !== currentTitle) {
-                    currentTitle = newTitle;
-                    
-                    const elements = document.querySelectorAll('.apple-transition');
-                    elements.forEach(el => el.classList.add('changing'));
-
-                    setTimeout(() => {
-                        document.getElementById('track').innerText = newTitle;
-                        document.getElementById('artist').innerText = newArtist;
-                        
-                        if(res.cover) {
-                            const u = `url('data:image/png;base64,${res.cover}')`;
-                            document.getElementById('art').style.backgroundImage = u;
-                            document.getElementById('cover-bg').style.backgroundImage = u;
-                            document.getElementById('cover-bg').style.filter = 'blur(60px)';
-                            document.getElementById('cover-bg').style.opacity = 0.3; 
-                        }
-
-                        elements.forEach(el => el.classList.remove('changing'));
-                    }, 400);
+                if (p[0] !== lastTitle) {
+                    lastTitle = p[0];
+                    document.getElementById('track').innerText = p[0] || "Not Playing";
+                    document.getElementById('artist').innerText = p[1] || "System Idle";
+                    if (res.cover) {
+                        const b64 = `url('data:image/png;base64,${res.cover}')`;
+                        document.getElementById('art').style.backgroundImage = b64;
+                        document.getElementById('cover-bg').style.backgroundImage = b64;
+                        document.getElementById('cover-bg').style.filter = 'blur(20px)';
+                        document.getElementById('cover-bg').style.opacity = 0.2;
+                    } else {
+                        document.getElementById('art').style.backgroundImage = '';
+                        document.getElementById('cover-bg').style.opacity = 0;
+                    }
                 }
-            } catch { document.getElementById('status-dot').classList.remove('online'); }
+
+                // --- ЛОГИКА КНОПКИ PLAY/PAUSE ---
+                if (res.playing !== lastPlayingState) {
+                    lastPlayingState = res.playing;
+                    const playBtn = document.querySelector('.play-btn');
+                    // Меняем иконку внутри кнопки
+                    if (res.playing) {
+                        playBtn.innerHTML = '<i data-lucide="pause" width="30" fill="black"></i>';
+                    } else {
+                        playBtn.innerHTML = '<i data-lucide="play" width="30" fill="black"></i>';
+                    }
+                    // Перерисовываем иконку Lucide
+                    lucide.createIcons();
+                }
+
+                // --- ГРОМКОСТЬ ---
+                const sl = document.querySelector('.main-vol');
+                if (sl && !sl.matches(':active')) sl.value = res.volume;
+
+            } catch (e) {
+                document.getElementById('status-dot').classList.remove('online');
+            }
         }
         setInterval(ping, 400);
     </script>
 </body>
+
 </html>

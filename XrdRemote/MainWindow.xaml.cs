@@ -447,22 +447,26 @@ private async Task<object> GetMediaInfo()
 {
     string window = "PC Connected";
     string cover = "";
-    int currentVol = 0; // Переменная для громкости
+    int currentVol = 0;
+    bool isPlaying = false; // Новая переменная
 
     try
     {
-        // 1. Получаем реальную громкость мастера (0-100)
         if (_audioDevice != null)
         {
             currentVol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
         }
 
-        // 2. Получаем инфу о треке
         if (_mediaManager != null)
         {
             var s = _mediaManager.GetCurrentSession();
             if (s != null)
             {
+                // Получаем статус: Playing, Paused, и т.д.
+                var playbackInfo = s.GetPlaybackInfo();
+                isPlaying = playbackInfo.Controls.IsPauseEnabled && 
+                            playbackInfo.PlaybackStatus == Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+
                 var p = await s.TryGetMediaPropertiesAsync();
                 window = $"{p.Title} • {p.Artist}";
 
@@ -480,8 +484,8 @@ private async Task<object> GetMediaInfo()
     }
     catch { }
     
-    // Возвращаем и трек, и ГРОМКОСТЬ
-    return new { window = window, cover = cover, volume = currentVol };
+    // Добавляем 'playing' в ответ
+    return new { window = window, cover = cover, volume = currentVol, playing = isPlaying };
 }
         // --- WinAPI ---
         [DllImport("user32.dll")] static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);

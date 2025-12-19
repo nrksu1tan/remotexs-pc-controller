@@ -181,6 +181,7 @@ private void InitializeTrayIcon()
                 {
                     var context = await _listener.GetContextAsync();
                     _ = Task.Run(() => HandleRequest(context));
+                    
                 }
                 catch { }
             }
@@ -198,7 +199,7 @@ private async void HandleRequest(HttpListenerContext context)
             context.Response.AppendHeader("Access-Control-Allow-Origin", "*");
             context.Response.AppendHeader("Access-Control-Allow-Methods", "POST, GET");
             context.Response.AppendHeader("Access-Control-Allow-Headers", "Content-Type");
-
+            
             if (method == "OPTIONS")
             {
                 context.Response.Close();
@@ -227,6 +228,11 @@ private async void HandleRequest(HttpListenerContext context)
                         Application.Current.Dispatcher.Invoke(() => ExecuteCommand(cmd));
                     }
                 }
+                else if (rawUrl == "/keyboard")
+{
+    contentType = "text/html";
+    response = KeyboardModule.GetHtml(); // <--- Добавляем эту строку
+}
                 else
                 {
                     // --- ГЛАВНОЕ ИЗМЕНЕНИЕ: ЧИТАЕМ ИЗ РЕСУРСОВ ---
@@ -256,6 +262,8 @@ private async void HandleRequest(HttpListenerContext context)
             context.Response.ContentLength64 = responseBytes.Length;
             context.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
             context.Response.OutputStream.Close();
+
+            
         }
 
         // --- НОВЫЙ МЕТОД: ДОСТАЕТ САЙТ ИЗ EXE ---
@@ -411,7 +419,10 @@ private string GetEmbeddedSite()
                     case "mute": keybd_event(VK_VOLUME_MUTE, 0, 0, 0); break;
                     case "vol_up": keybd_event(VK_VOLUME_UP, 0, 0, 0); break;
                     case "vol_down": keybd_event(VK_VOLUME_DOWN, 0, 0, 0); break;
+                    case "key_event":
 
+                     KeyboardModule.HandleCommand(data.cmd, data.id, data.vol > 0); 
+                    break;
                     case "set_vol":
                         SetAppVolume(data.id, data.vol);
                         break;

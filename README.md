@@ -65,7 +65,7 @@
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/your-username/xrd-remote.git](https://github.com/your-username/xrd-remote.git)
+    git clone [https://github.com/nrksu1tan/remotexs-pc-controller.git](https://github.com/nrksu1tan/remotexs-pc-controller.git)
     ```
 2.  Open the solution in **Visual Studio** or **VS Code**.
 3.  Restore dependencies:

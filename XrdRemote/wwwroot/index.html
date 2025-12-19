@@ -336,13 +336,17 @@
         <div style="position: absolute; bottom: 20px; color:#444; font-size:12px;">RemoteXS v1.0</div>
     </div>
 
-    <script>
+<script>
         lucide.createIcons();
         document.addEventListener('gesturestart', e => e.preventDefault());
 
         let ip = localStorage.getItem('xrd_ip');
         if(!ip) document.getElementById('setup').classList.remove('hidden');
         else document.getElementById('ip').value = ip;
+
+        // Флаг: держит ли пользователь слайдер прямо сейчас?
+        // Если да — не обновляем его из пинга, чтобы не сбивать палец.
+        let isDragging = false;
 
         function saveIp() {
             ip = document.getElementById('ip').value;
@@ -389,7 +393,7 @@
 
             if(e.touches.length === 2) {
                 const cy = e.touches[0].clientY;
-                const dy = -(cy - ly) * 2.5; // Natural scroll
+                const dy = -(cy - ly) * 2.5; 
                 if(Math.abs(dy) > 1) send('scroll', {y: dy});
                 ly = cy;
             } else if(e.touches.length === 1) {
@@ -401,6 +405,25 @@
                 lx = cx; ly = cy;
             }
         }, {passive:false});
+
+        // --- СЛАЙДЕРЫ (Обработка касаний) ---
+        // Чтобы слайдер не обновлялся сервером, пока мы его тянем
+        function setupSliderEvents() {
+            const sliders = document.querySelectorAll('input[type=range]');
+            sliders.forEach(sl => {
+                sl.addEventListener('touchstart', () => { isDragging = true; });
+                sl.addEventListener('touchend', () => { 
+                    isDragging = false; 
+                    // Небольшая задержка, чтобы ping не дернул слайдер сразу после отпускания
+                    setTimeout(() => isDragging = false, 1000); 
+                });
+                sl.addEventListener('mousedown', () => { isDragging = true; }); // Для ПК тестов
+                sl.addEventListener('mouseup', () => { isDragging = false; });
+            });
+        }
+
+        // Вызываем один раз для главного слайдера при загрузке
+        window.onload = setupSliderEvents;
 
         async function loadMixer() {
             if(!ip) return;
@@ -424,6 +447,8 @@
                     list.appendChild(div);
                 });
                 lucide.createIcons();
+                // Навешиваем события "не трогай меня" на новые слайдеры микшера
+                setupSliderEvents();
             } catch { list.innerHTML = '<div style="text-align:center; padding:30px; opacity:0.3">Disconnected</div>'; }
         }
 
@@ -435,6 +460,14 @@
                 const res = await fetch(`http://${ip}/ping`).then(r=>r.json());
                 document.getElementById('status-dot').classList.add('online');
                 
+                // --- СИНХРОНИЗАЦИЯ ГРОМКОСТИ ---
+                // Обновляем главный слайдер, ТОЛЬКО если палец не на экране
+                const mainSlider = document.querySelector('.main-vol');
+                if (mainSlider && !isDragging && res.volume !== undefined) {
+                    mainSlider.value = res.volume;
+                }
+                // -------------------------------
+
                 const p = res.window.split(' • ');
                 const newTitle = p[0] || "Not Playing";
                 const newArtist = p[1] || "";
@@ -453,8 +486,7 @@
                             const u = `url('data:image/png;base64,${res.cover}')`;
                             document.getElementById('art').style.backgroundImage = u;
                             document.getElementById('cover-bg').style.backgroundImage = u;
-                            document.getElementById('cover-bg').style.filter = 'blur(60px)';
-                            document.getElementById('cover-bg').style.opacity = 0.1; 
+                            document.getElementById('cover-bg').style.opacity = 0.3; 
                         }
 
                         elements.forEach(el => el.classList.remove('changing'));

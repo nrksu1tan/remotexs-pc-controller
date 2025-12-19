@@ -432,37 +432,46 @@ private string GetEmbeddedSite()
             catch { }
         }
 
-        private async Task<object> GetMediaInfo()
+private async Task<object> GetMediaInfo()
+{
+    string window = "PC Connected";
+    string cover = "";
+    int currentVol = 0; // Переменная для громкости
+
+    try
+    {
+        // 1. Получаем реальную громкость мастера (0-100)
+        if (_audioDevice != null)
         {
-            string window = "PC Connected";
-            string cover = "";
+            currentVol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
+        }
 
-            try
+        // 2. Получаем инфу о треке
+        if (_mediaManager != null)
+        {
+            var s = _mediaManager.GetCurrentSession();
+            if (s != null)
             {
-                if (_mediaManager != null)
-                {
-                    var s = _mediaManager.GetCurrentSession();
-                    if (s != null)
-                    {
-                        var p = await s.TryGetMediaPropertiesAsync();
-                        window = $"{p.Title} • {p.Artist}";
+                var p = await s.TryGetMediaPropertiesAsync();
+                window = $"{p.Title} • {p.Artist}";
 
-                        if (p.Thumbnail != null)
-                        {
-                            using (var st = await p.Thumbnail.OpenReadAsync())
-                            using (var ms = new MemoryStream())
-                            {
-                                await st.AsStreamForRead().CopyToAsync(ms);
-                                cover = Convert.ToBase64String(ms.ToArray());
-                            }
-                        }
+                if (p.Thumbnail != null)
+                {
+                    using (var st = await p.Thumbnail.OpenReadAsync())
+                    using (var ms = new MemoryStream())
+                    {
+                        await st.AsStreamForRead().CopyToAsync(ms);
+                        cover = Convert.ToBase64String(ms.ToArray());
                     }
                 }
             }
-            catch { }
-            return new { window = window, cover = cover };
         }
-
+    }
+    catch { }
+    
+    // Возвращаем и трек, и ГРОМКОСТЬ
+    return new { window = window, cover = cover, volume = currentVol };
+}
         // --- WinAPI ---
         [DllImport("user32.dll")] static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
         [DllImport("user32.dll")] static extern bool SetCursorPos(int X, int Y);

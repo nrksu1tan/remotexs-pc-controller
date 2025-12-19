@@ -30,7 +30,7 @@ namespace XrdRemote
         private GlobalSystemMediaTransportControlsSessionManager _mediaManager;
         private MMDevice _audioDevice;
         private string _localIp;
-        private const int PORT = 8080;
+        private int _currentPort = 8080;
         
         // Трей
         private Forms.NotifyIcon _trayIcon;
@@ -44,6 +44,26 @@ namespace XrdRemote
             StartServer();        
         }
 
+private void Settings_Click(object sender, RoutedEventArgs e)
+{
+    var sw = new SettingsWindow(_currentPort);
+    sw.Owner = this;
+    sw.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+    sw.ShowDialog();
+}
+
+public void UpdateServerPort(int newPort)
+{
+    if (_currentPort == newPort) return;
+    _currentPort = newPort;
+
+    if (_listener != null)
+    {
+        _listener.Stop();
+        _listener.Close();
+    }
+    StartServer();
+}
         // --- ЛОГИКА ТРЕЯ ---
 private void InitializeTrayIcon()
 {
@@ -127,22 +147,25 @@ private void InitializeTrayIcon()
             catch { }
         }
 
-        private void StartServer()
-        {
-            try
-            {
-                _localIp = GetLocalIpAddress();
-                string url = $"http://{_localIp}:{PORT}";
-                IpText.Text = url;
-                GenerateQr(url);
+private void StartServer()
+{
+    try
+    {
+        _localIp = GetLocalIpAddress();
+        string url = $"http://{_localIp}:{_currentPort}"; // Используем переменную
+        IpText.Text = $"{_localIp}:{_currentPort}";
+        GenerateQr(url);
 
-                _listener = new HttpListener();
-                _listener.Prefixes.Add($"http://*:{PORT}/");
-                _listener.Start();
-                Task.Run(ListenLoop);
-            }
-            catch (Exception ex) { MessageBox.Show("Ошибка сервера: " + ex.Message); }
-        }
+        _listener = new HttpListener();
+        _listener.Prefixes.Add($"http://*:{_currentPort}/"); 
+        _listener.Start();
+        Task.Run(ListenLoop);
+    }
+    catch (Exception ex) 
+    { 
+        MessageBox.Show("Ошибка сервера: " + ex.Message + "\nПопробуйте запустить от имени администратора для смены порта."); 
+    }
+}
 
         private string GetLocalIpAddress()
         {

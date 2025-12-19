@@ -1,0 +1,42 @@
+<Window x:Class="XrdRemote.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="300" Width="320" 
+        Background="Transparent" WindowStyle="None" AllowsTransparency="True">
+    
+    <Border BorderBrush="#1F1F1F" BorderThickness="1.5" CornerRadius="16" Background="#0A0A0A">
+        <Grid Margin="25">
+            <StackPanel>
+                <TextBlock Text="SETTINGS" Foreground="White" FontWeight="Bold" FontSize="18" Margin="0,0,0,20"/>
+                
+                <TextBlock Text="SERVER PORT" Foreground="#888" FontSize="10" FontWeight="Bold" Margin="0,0,0,5"/>
+                <TextBox x:Name="PortBox" Text="8080" Background="#141414" Foreground="White" 
+                         BorderBrush="#333" Padding="10,8" Margin="0,0,0,20" FontSize="14"/>
+
+                <CheckBox x:Name="AutostartCheck" Content="Launch on Windows Startup" Foreground="#BBB" FontSize="12" Margin="0,0,0,30">
+                    <CheckBox.LayoutTransform>
+                        <ScaleTransform ScaleX="1.1" ScaleY="1.1"/>
+                    </CheckBox.LayoutTransform>
+                </CheckBox>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Content="CANCEL" Grid.Column="0" Click="Cancel_Click" Background="Transparent" Foreground="#666" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="APPLY" Grid.Column="1" Click="Save_Click" 
+                            Background="#00E676" Foreground="Black" FontWeight="Bold" Height="40" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

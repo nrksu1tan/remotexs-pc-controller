@@ -4,7 +4,7 @@
 
 **Control your PC seamlessly from your phone via Wi-Fi.** *Lightweight. Self-hosted. No app installation required.*
 
-![Version](https://img.shields.io/badge/version-v1.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-v2.2-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue?style=flat-square)
 ![Tech](https://img.shields.io/badge/built%20with-.NET%206%20WPF-purple?style=flat-square)

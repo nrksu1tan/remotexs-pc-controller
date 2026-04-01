@@ -1,27 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>RemoteXS</title>
-
     <style>
         :root {
-            --surface: rgba(255, 255, 255, 0.07);
-            --surface-hi: rgba(255, 255, 255, 0.13);
-            --border: rgba(255, 255, 255, 0.10);
-            --text: #ffffff;
-            --text-dim: rgba(255, 255, 255, 0.45);
-            --text-dimmer: rgba(255, 255, 255, 0.20);
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
             --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-            --radius-card: 20px;
-            --radius-pill: 100px;
+            --surface: rgba(255,255,255,0.07);
+            --surface-hi: rgba(255,255,255,0.13);
+            --border: rgba(255,255,255,0.10);
+            --text: #fff;
+            --dim: rgba(255,255,255,0.45);
+            --dimmer: rgba(255,255,255,0.22);
+            --safe-t: env(safe-area-inset-top);
+            --safe-b: env(safe-area-inset-bottom);
         }
 
         * {
@@ -30,613 +25,461 @@
             user-select: none;
             -webkit-user-select: none;
             font-family: var(--font);
+            margin: 0; padding: 0;
         }
 
-        body {
+        html, body {
             background: #000;
             color: var(--text);
-            margin: 0;
-            height: 100dvh;
+            height: 100%;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
             overscroll-behavior: none;
         }
 
-        /* Background */
-        #cover-bg {
+        /* iPhone home bar fix — opaque strip at very bottom */
+        body::after {
+            content: '';
             position: fixed;
-            inset: -30px;
-            z-index: -1;
+            bottom: 0; left: 0; right: 0;
+            height: env(safe-area-inset-bottom);
+            background: #000;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        /* ── Blurred background ──────────────────────────────── */
+        #bg {
+            position: fixed;
+            inset: -40px;
             background-size: cover;
             background-position: center;
-            filter: blur(90px) brightness(0.15) saturate(1.6);
+            filter: blur(100px) brightness(0.14) saturate(1.8);
             opacity: 0;
-            transition: opacity 2s ease;
+            transition: opacity 2.2s ease;
+            z-index: -1;
         }
 
-        /* App shell */
-        .app {
+        /* ── App shell ───────────────────────────────────────── */
+        .shell {
             display: flex;
             flex-direction: column;
-            height: 100%;
-            padding-top: max(16px, var(--safe-top));
+            height: 100dvh;
+            padding-top: max(16px, var(--safe-t));
         }
 
-        /* Nav bar */
-        .navbar {
+        /* ── Nav ─────────────────────────────────────────────── */
+        .nav {
             flex-shrink: 0;
             height: 44px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 22px;
             z-index: 10;
         }
 
-        .nav-status {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-dimmer);
-            letter-spacing: -0.01em;
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--text-dimmer);
-            transition: background 0.4s, box-shadow 0.4s;
-            flex-shrink: 0;
-        }
-
-        .status-dot.online {
-            background: #30D158;
-            box-shadow: 0 0 10px rgba(48, 209, 88, 0.6);
-        }
-
-        .nav-btn {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-dim);
-            transition: background 0.15s;
-        }
-
-        .nav-btn:active {
-            background: var(--surface-hi);
-        }
-
-        /* Content area */
-        .content {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .view {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(8px);
-            transition: opacity 0.26s cubic-bezier(0.4, 0, 0.2, 1),
-                        transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform, opacity;
-        }
-
-        .view.active {
-            opacity: 1;
-            pointer-events: all;
-            transform: translateY(0);
-        }
-
-        /* ─── MEDIA TAB ─── */
-        #tab-media {
-            padding: 0 20px;
-            padding-bottom: calc(80px + var(--safe-bottom));
-        }
-
-        .art-wrap {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 0;
-            padding: 12px 0 18px;
-        }
-
-        .art {
-            width: 100%;
-            max-width: 320px;
-            aspect-ratio: 1;
-            border-radius: 22px;
-            background: rgba(255, 255, 255, 0.05);
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 28px 56px rgba(0, 0, 0, 0.65),
-                        0 0 0 0.5px rgba(255, 255, 255, 0.07);
-            transition: opacity 0.3s, transform 0.3s;
-        }
-
-        .art.fade {
-            opacity: 0;
-            transform: scale(0.96);
-        }
-
-        .track-info {
-            text-align: center;
-            margin-bottom: 24px;
-            padding: 0 12px;
-        }
-
-        .track-title {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 4px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            line-height: 1.2;
-        }
-
-        .track-artist {
-            font-size: 15px;
-            font-weight: 400;
-            color: var(--text-dim);
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-
-        .controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 22px;
-        }
-
-        .ctrl-btn {
-            width: 56px;
-            height: 56px;
-            background: var(--surface);
-            border: 0.5px solid var(--border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255, 255, 255, 0.7);
-            transition: background 0.15s, transform 0.15s;
-        }
-
-        .ctrl-btn:active {
-            transform: scale(0.87);
-            background: var(--surface-hi);
-            color: #fff;
-        }
-
-        .play-btn {
-            width: 72px;
-            height: 72px;
-            background: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 28px rgba(255, 255, 255, 0.14);
-            transition: transform 0.15s, background 0.15s;
-        }
-
-        .play-btn:active {
-            transform: scale(0.90);
-            background: rgba(255, 255, 255, 0.84);
-        }
-
-        .vol-bar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--surface);
-            border: 0.5px solid var(--border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: var(--radius-pill);
-            padding: 8px 12px 8px 8px;
-            height: 58px;
-        }
-
-        .mute-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-dim);
-            flex-shrink: 0;
-            transition: background 0.15s, transform 0.15s;
-        }
-
-        .mute-btn:active {
-            background: rgba(255, 255, 255, 0.18);
-            transform: scale(0.90);
-        }
-
-        .vol-icons {
+        .nav-left {
             display: flex;
             align-items: center;
             gap: 8px;
-            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--dimmer);
         }
 
-        .vol-ic { color: var(--text-dimmer); flex-shrink: 0; }
-
-        input[type=range].vol-range {
-            flex: 1;
-            -webkit-appearance: none;
-            background: transparent;
-            touch-action: none;
-            min-width: 0;
-        }
-
-        input[type=range].vol-range::-webkit-slider-runnable-track {
-            height: 4px;
-            background: rgba(255, 255, 255, 0.18);
-            border-radius: 2px;
-        }
-
-        input[type=range].vol-range::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
-            background: #fff;
+        .dot {
+            width: 7px; height: 7px;
             border-radius: 50%;
-            margin-top: -9px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            background: var(--dimmer);
+            transition: background .4s, box-shadow .4s;
         }
 
-        /* ─── MOUSE TAB ─── */
-        #tab-mouse {
-            padding: 10px 20px calc(80px + var(--safe-bottom));
-            touch-action: none;
+        .dot.on {
+            background: #30D158;
+            box-shadow: 0 0 10px rgba(48,209,88,.6);
         }
+
+        .nav-btn {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--dim);
+            transition: background .15s;
+        }
+        .nav-btn:active { background: var(--surface-hi); }
+
+        /* ── Content ─────────────────────────────────────────── */
+        .content { flex: 1; position: relative; overflow: hidden; }
+
+        .view {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity .26s cubic-bezier(.4,0,.2,1),
+                        transform .26s cubic-bezier(.4,0,.2,1);
+            will-change: transform, opacity;
+        }
+        .view.active { opacity: 1; pointer-events: all; transform: none; }
+
+        /* ════════════════════════════════════════════════════════
+           MEDIA TAB  — Apple Music style
+        ════════════════════════════════════════════════════════ */
+        #tab-media {
+            padding: 4px 24px 0;
+            padding-bottom: calc(76px + var(--safe-b));
+        }
+
+        /* Album art */
+        .art-wrap {
+            flex: 1;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 0;
+            padding-bottom: 6px;
+        }
+
+        .art {
+            width: min(100%, 300px);
+            aspect-ratio: 1;
+            border-radius: 18px;
+            background: rgba(255,255,255,.05);
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 32px 60px rgba(0,0,0,.7),
+                        0 0 0 .5px rgba(255,255,255,.06);
+            transition: opacity .3s, transform .3s;
+        }
+        .art.fade { opacity: 0; transform: scale(.95); }
+
+        /* Track info row */
+        .track-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .track-text { flex: 1; overflow: hidden; }
+        .track-title {
+            font-size: 21px; font-weight: 700;
+            letter-spacing: -.03em; line-height: 1.15;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            margin-bottom: 3px;
+        }
+        .track-artist {
+            font-size: 15px; font-weight: 400;
+            color: var(--dim);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .heart-btn {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--dimmer); flex-shrink: 0;
+            transition: color .15s, transform .15s;
+            margin-left: 12px;
+        }
+        .heart-btn:active { color: #FF3B30; transform: scale(.88); }
+
+        /* Progress bar */
+        .progress-wrap { margin-bottom: 14px; }
+
+        .progress-bar-bg {
+            width: 100%; height: 4px;
+            background: rgba(255,255,255,.15);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+            margin-bottom: 6px;
+        }
+        .progress-fill {
+            height: 100%; border-radius: 2px;
+            background: rgba(255,255,255,.85);
+            width: 0%;
+            transition: width .4s linear;
+            pointer-events: none;
+        }
+        .progress-times {
+            display: flex; justify-content: space-between;
+            font-size: 11px; font-weight: 500;
+            color: var(--dimmer);
+            letter-spacing: .01em;
+        }
+
+        /* Controls row */
+        .controls {
+            display: flex;
+            align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .ctrl {
+            width: 58px; height: 58px;
+            background: var(--surface);
+            border: .5px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,.7);
+            transition: background .15s, transform .15s;
+        }
+        .ctrl:active { transform: scale(.87); background: var(--surface-hi); color: #fff; }
+
+        .play {
+            width: 74px; height: 74px;
+            background: #fff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 30px rgba(255,255,255,.14);
+            transition: transform .15s, background .15s;
+        }
+        .play:active { transform: scale(.89); background: rgba(255,255,255,.82); }
+
+        /* Volume */
+        .vol-row {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface);
+            border: .5px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 100px; padding: 8px; height: 56px;
+        }
+
+        .mute {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,.08);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--dim); flex-shrink: 0;
+            transition: background .15s, transform .15s;
+        }
+        .mute:active { background: rgba(255,255,255,.18); transform: scale(.9); }
+
+        .vol-inner { flex: 1; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
+        .vic { color: var(--dimmer); flex-shrink: 0; }
+
+        input[type=range].vslider {
+            flex: 1; -webkit-appearance: none;
+            background: transparent; touch-action: none;
+        }
+        input[type=range].vslider::-webkit-slider-runnable-track {
+            height: 4px; background: rgba(255,255,255,.18); border-radius: 2px;
+        }
+        input[type=range].vslider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px; height: 22px;
+            background: #fff; border-radius: 50%;
+            margin-top: -9px; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+        }
+
+        /* ════════════════════════════════════════════════════════
+           MOUSE TAB
+        ════════════════════════════════════════════════════════ */
+        #tab-mouse { padding: 10px 20px calc(80px + var(--safe-b)); touch-action: none; }
 
         .pad {
             flex: 1;
-            background: var(--surface);
-            border: 0.5px solid var(--border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 22px;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 12px;
+            background: var(--surface); border: .5px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 22px; position: relative; margin-bottom: 12px;
         }
-
-        .pad-center-dot {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 4px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.14);
-            border-radius: 50%;
+        .pad::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 4px; height: 4px;
+            background: rgba(255,255,255,.14); border-radius: 50%;
         }
-
         .pad-hint {
-            position: absolute;
-            bottom: 16px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--text-dimmer);
-            letter-spacing: 0.02em;
-            pointer-events: none;
+            position: absolute; bottom: 16px; left: 0; right: 0;
+            text-align: center; font-size: 11px; font-weight: 500;
+            color: var(--dimmer); letter-spacing: .02em; pointer-events: none;
         }
 
-        .click-row {
-            display: flex;
-            gap: 10px;
-            height: 56px;
-            flex-shrink: 0;
-        }
+        .click-row { display: flex; gap: 10px; height: 56px; flex-shrink: 0; }
 
-        .click-btn {
-            flex: 1;
-            background: var(--surface);
-            border: 0.5px solid var(--border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+        .clk {
+            flex: 1; background: var(--surface); border: .5px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-dim);
-            letter-spacing: -0.01em;
-            transition: background 0.1s, color 0.1s, transform 0.1s;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 500; color: var(--dim);
+            transition: background .1s, color .1s, transform .1s;
         }
+        .clk:active { background: #fff; color: #000; transform: scale(.96); }
 
-        .click-btn:active {
-            background: #fff;
-            color: #000;
-            transform: scale(0.96);
-        }
-
-        /* ─── MIXER TAB ─── */
+        /* ════════════════════════════════════════════════════════
+           MIXER TAB
+        ════════════════════════════════════════════════════════ */
         #tab-mixer {
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow-y: auto; -webkit-overflow-scrolling: touch;
             touch-action: pan-y;
-            padding: 0 20px calc(100px + var(--safe-bottom));
+            padding: 0 20px calc(100px + var(--safe-b));
         }
 
-        .section-header {
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            margin: 10px 0 16px 2px;
+        .sec-title {
+            font-size: 24px; font-weight: 700; letter-spacing: -.03em;
+            margin: 10px 0 14px 2px;
         }
 
-        .mix-list {
-            background: var(--surface);
-            border: 0.5px solid var(--border);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: var(--radius-card);
-            overflow: hidden;
+        .mix-card {
+            background: var(--surface); border: .5px solid var(--border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px; overflow: hidden;
         }
 
-        .mix-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 12px 16px;
-            position: relative;
+        .mix-row {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 16px; position: relative;
+        }
+        .mix-row + .mix-row::before {
+            content: ''; position: absolute; top: 0; left: 70px; right: 0;
+            height: .5px; background: var(--border);
         }
 
-        .mix-item + .mix-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 74px;
-            right: 0;
-            height: 0.5px;
-            background: var(--border);
+        .app-ic {
+            width: 40px; height: 40px; border-radius: 10px;
+            object-fit: contain; background: rgba(255,255,255,.06);
+            padding: 4px; flex-shrink: 0;
+        }
+        .app-ph {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: rgba(255,255,255,.07);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--dimmer); flex-shrink: 0;
+        }
+        .app-nm {
+            flex: 1; font-size: 14px; font-weight: 500;
+            letter-spacing: -.01em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        .app-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            object-fit: contain;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 4px;
-            flex-shrink: 0;
+        input[type=range].mslider {
+            width: 90px; -webkit-appearance: none;
+            background: transparent; touch-action: none;
         }
-
-        .app-icon-ph {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.07);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-dimmer);
-            flex-shrink: 0;
+        input[type=range].mslider::-webkit-slider-runnable-track {
+            height: 4px; background: rgba(255,255,255,.14); border-radius: 2px;
         }
-
-        .app-label {
-            flex: 1;
-            font-size: 14px;
-            font-weight: 500;
-            letter-spacing: -0.01em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        input[type=range].mix-range {
-            width: 90px;
+        input[type=range].mslider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            background: transparent;
-            touch-action: none;
+            width: 18px; height: 18px; background: #fff;
+            margin-top: -7px; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.4);
         }
 
-        input[type=range].mix-range::-webkit-slider-runnable-track {
-            height: 4px;
-            background: rgba(255, 255, 255, 0.14);
-            border-radius: 2px;
-        }
-
-        input[type=range].mix-range::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            background: #fff;
-            margin-top: -7px;
-            border-radius: 50%;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-        }
-
-        /* ─── DOCK ─── */
-        .dock-wrap {
+        /* ════════════════════════════════════════════════════════
+           DOCK
+        ════════════════════════════════════════════════════════ */
+        .dock-outer {
             position: fixed;
-            bottom: max(14px, var(--safe-bottom));
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-            z-index: 100;
+            bottom: 0; left: 0; right: 0;
+            padding: 0 0 max(14px, var(--safe-b));
+            background: linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 100%);
+            display: flex; justify-content: center;
+            pointer-events: none; z-index: 100;
         }
 
         .dock {
             pointer-events: auto;
-            background: rgba(26, 26, 28, 0.78);
+            background: rgba(26,26,28,.78);
             backdrop-filter: blur(40px) saturate(180%);
             -webkit-backdrop-filter: blur(40px) saturate(180%);
-            border: 0.5px solid rgba(255, 255, 255, 0.12);
-            padding: 7px 10px;
-            border-radius: var(--radius-pill);
-            display: flex;
-            gap: 4px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+            border: .5px solid rgba(255,255,255,.12);
+            padding: 7px 10px; border-radius: 100px;
+            display: flex; gap: 4px;
+            box-shadow: 0 16px 48px rgba(0,0,0,.5);
         }
 
-        .dock-item {
-            width: 50px;
-            height: 50px;
-            border-radius: var(--radius-pill);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255, 255, 255, 0.36);
-            transition: color 0.25s cubic-bezier(0.34, 1.5, 0.64, 1),
-                        background 0.25s,
-                        transform 0.25s cubic-bezier(0.34, 1.5, 0.64, 1);
+        .tab-btn {
+            width: 50px; height: 50px; border-radius: 100px;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,.36);
+            transition: color .25s cubic-bezier(.34,1.5,.64,1),
+                        background .25s, transform .25s cubic-bezier(.34,1.5,.64,1);
         }
+        .tab-btn:active { transform: scale(.84); }
+        .tab-btn.on { color: #fff; background: rgba(255,255,255,.12); }
 
-        .dock-item:active { transform: scale(0.84); }
-
-        .dock-item.active {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        /* ─── SETUP SCREEN ─── */
+        /* ════════════════════════════════════════════════════════
+           SETUP / PAIRING SCREEN
+        ════════════════════════════════════════════════════════ */
         #setup {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 30px;
-            gap: 0;
+            position: fixed; inset: 0; background: #000; z-index: 999;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: max(40px, var(--safe-t)) 30px max(40px, var(--safe-b));
         }
-
         #setup.hidden { display: none; }
 
         .setup-icon {
-            width: 64px;
-            height: 64px;
-            background: rgba(255, 255, 255, 0.07);
-            border: 0.5px solid var(--border);
+            width: 64px; height: 64px;
+            background: rgba(255,255,255,.07); border: .5px solid var(--border);
             border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-            color: var(--text-dim);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 18px; color: var(--dim);
         }
-
-        .setup-title {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 6px;
-        }
-
+        .setup-h { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; }
         .setup-sub {
-            font-size: 13px;
-            color: var(--text-dim);
-            text-align: center;
-            margin-bottom: 28px;
-            line-height: 1.5;
+            font-size: 13px; color: var(--dim);
+            text-align: center; line-height: 1.55; margin-bottom: 26px;
         }
 
-        .ip-field {
-            background: rgba(255, 255, 255, 0.07);
-            border: 0.5px solid var(--border);
-            color: #fff;
-            padding: 14px 18px;
-            border-radius: 14px;
-            font-size: 16px;
-            text-align: center;
-            width: 240px;
-            outline: none;
-            font-family: "SF Mono", "Menlo", "Consolas", monospace;
-            letter-spacing: 0.02em;
-            margin-bottom: 12px;
-            transition: border-color 0.15s, background 0.15s;
+        .ip-inp {
+            background: rgba(255,255,255,.07); border: .5px solid var(--border);
+            color: #fff; padding: 14px 18px; border-radius: 14px;
+            font-size: 16px; text-align: center; width: 240px; outline: none;
+            font-family: "SF Mono","Menlo","Consolas",monospace;
+            letter-spacing: .02em; margin-bottom: 10px;
+            transition: border-color .15s, background .15s;
         }
+        .ip-inp:focus { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.10); }
 
-        .ip-field:focus {
-            border-color: rgba(255, 255, 255, 0.28);
-            background: rgba(255, 255, 255, 0.10);
+        .setup-err {
+            font-size: 12px; color: #FF3B30;
+            min-height: 18px; margin-bottom: 10px; text-align: center;
         }
 
         .connect-btn {
-            background: #fff;
-            color: #000;
-            border: none;
-            padding: 14px 42px;
-            border-radius: var(--radius-pill);
-            font-weight: 600;
-            font-size: 15px;
-            letter-spacing: -0.01em;
-            cursor: pointer;
-            font-family: var(--font);
-            transition: opacity 0.15s, transform 0.15s;
+            background: #fff; color: #000; border: none;
+            padding: 14px 44px; border-radius: 100px;
+            font-weight: 600; font-size: 15px;
+            font-family: var(--font); cursor: pointer;
+            transition: opacity .15s, transform .15s;
+            margin-bottom: 12px;
         }
+        .connect-btn:active { opacity: .8; transform: scale(.97); }
 
-        .connect-btn:active {
-            opacity: 0.8;
-            transform: scale(0.97);
+        .discover-btn {
+            background: transparent; color: var(--dim);
+            border: .5px solid var(--border); padding: 10px 28px;
+            border-radius: 100px; font-size: 13px; font-weight: 500;
+            font-family: var(--font); cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+        .discover-btn:active { background: var(--surface-hi); color: #fff; }
+
+        #discover-status {
+            font-size: 12px; color: var(--dimmer); margin-top: 14px;
+            min-height: 16px; text-align: center;
         }
 
         .setup-footer {
             position: absolute;
-            bottom: max(22px, var(--safe-bottom));
-            font-size: 11px;
-            color: var(--text-dimmer);
-            font-weight: 500;
-            letter-spacing: 0.04em;
+            bottom: max(22px, var(--safe-b));
+            font-size: 11px; color: var(--dimmer);
+            font-weight: 500; letter-spacing: .04em;
         }
 
-        /* ─── EMPTY STATES ─── */
-        .empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: var(--text-dimmer);
-            font-size: 14px;
-            font-weight: 500;
-        }
+        .empty { text-align: center; padding: 48px 0; color: var(--dimmer); font-size: 14px; }
     </style>
 </head>
-
 <body>
-    <div id="cover-bg"></div>
+    <div id="bg"></div>
 
-    <div class="app">
-        <div class="navbar">
-            <div class="nav-status">
-                <div id="status-dot" class="status-dot"></div>
-                <span id="status-label">RemoteXS</span>
+    <div class="shell">
+        <div class="nav">
+            <div class="nav-left">
+                <div id="dot" class="dot"></div>
+                <span id="status">RemoteXS</span>
             </div>
             <div class="nav-btn" onclick="document.getElementById('setup').classList.remove('hidden')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
                     <circle cx="12" cy="12" r="3"/>
                 </svg>
@@ -645,54 +488,73 @@
 
         <div class="content">
 
-            <!-- MEDIA -->
+            <!-- ── MEDIA ─────────────────────────────────────────────── -->
             <div id="tab-media" class="view active">
                 <div class="art-wrap">
                     <div id="art" class="art"></div>
                 </div>
-                <div class="track-info">
-                    <div id="track" class="track-title">Not Playing</div>
-                    <div id="artist" class="track-artist">System Idle</div>
-                </div>
-                <div class="controls">
-                    <div class="ctrl-btn" ontouchend="send('prev')">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+
+                <div class="track-row">
+                    <div class="track-text">
+                        <div id="track-title" class="track-title">Not Playing</div>
+                        <div id="track-artist" class="track-artist">System Idle</div>
+                    </div>
+                    <div class="heart-btn" ontouchend="this.classList.toggle('liked')">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="19 20 9 12 19 4 19 20"/>
-                            <line x1="5" x2="5" y1="19" y2="5"/>
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                         </svg>
                     </div>
-                    <div class="play-btn" ontouchend="send('play_pause')">
+                </div>
+
+                <!-- Progress bar -->
+                <div class="progress-wrap">
+                    <div class="progress-bar-bg" id="progress-bg">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-times">
+                        <span id="t-pos">0:00</span>
+                        <span id="t-dur">0:00</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <div class="ctrl" ontouchend="send('prev')">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/>
+                        </svg>
+                    </div>
+                    <div class="play" ontouchend="send('play_pause')">
                         <svg id="play-icon" width="30" height="30" viewBox="0 0 24 24" fill="black" stroke="none">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
                     </div>
-                    <div class="ctrl-btn" ontouchend="send('next')">
+                    <div class="ctrl" ontouchend="send('next')">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 4 15 12 5 20 5 4"/>
-                            <line x1="19" x2="19" y1="5" y2="19"/>
+                            <polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/>
                         </svg>
                     </div>
                 </div>
-                <div class="vol-bar">
-                    <div class="mute-btn" ontouchend="send('mute')">
+
+                <div class="vol-row">
+                    <div class="mute" ontouchend="send('mute')">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                            <line x1="23" x2="17" y1="9" y2="15"/>
-                            <line x1="17" x2="23" y1="9" y2="15"/>
+                            <line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/>
                         </svg>
                     </div>
-                    <div class="vol-icons">
-                        <svg class="vol-ic" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    <div class="vol-inner">
+                        <svg class="vic" width="15" height="15" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                             <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
                         </svg>
-                        <input type="range" class="vol-range" min="0" max="100"
-                            oninput="send('set_vol', {id:-1, vol:parseInt(this.value)})">
-                        <svg class="vol-ic" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                        <input type="range" class="vslider" min="0" max="100"
+                            oninput="send('set_vol',{id:-1,vol:parseInt(this.value)})">
+                        <svg class="vic" width="15" height="15" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -701,58 +563,55 @@
                 </div>
             </div>
 
-            <!-- MOUSE / TRACKPAD -->
+            <!-- ── MOUSE ──────────────────────────────────────────────── -->
             <div id="tab-mouse" class="view">
                 <div id="trackpad" class="pad">
-                    <div class="pad-center-dot"></div>
                     <div class="pad-hint">Tap · Hold = right-click · 2 fingers = scroll</div>
                 </div>
                 <div class="click-row">
-                    <div class="click-btn" ontouchend="send('click_left')">Left</div>
-                    <div class="click-btn" ontouchend="send('click_right')">Right</div>
+                    <div class="clk" ontouchend="send('click_left')">Left</div>
+                    <div class="clk" ontouchend="send('click_right')">Right</div>
                 </div>
             </div>
 
-            <!-- MIXER -->
+            <!-- ── MIXER ──────────────────────────────────────────────── -->
             <div id="tab-mixer" class="view">
-                <div class="section-header">Mixer</div>
-                <div id="mixer-list">
-                    <div class="empty-state">Connecting...</div>
-                </div>
+                <div class="sec-title">Mixer</div>
+                <div id="mixer-list"><div class="empty">Connecting...</div></div>
             </div>
 
         </div>
     </div>
 
-    <!-- DOCK -->
-    <div class="dock-wrap">
+    <!-- ── DOCK ───────────────────────────────────────────────────────── -->
+    <div class="dock-outer">
         <div class="dock">
-            <div class="dock-item active" onclick="go('media', this)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
+            <div class="tab-btn on" onclick="go('media',this)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 18V5l12-2v13"/>
-                    <circle cx="6" cy="18" r="3"/>
-                    <circle cx="18" cy="16" r="3"/>
+                    <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
                 </svg>
             </div>
-            <div class="dock-item" onclick="go('mouse', this)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
+            <div class="tab-btn" onclick="go('mouse',this)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/>
                 </svg>
             </div>
-            <div class="dock-item" onclick="go('mixer', this); loadMixer()">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
+            <div class="tab-btn" onclick="go('mixer',this);loadMixer()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/>
                     <line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/>
                     <line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/>
-                    <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/>
+                    <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/>
+                    <circle cx="14" cy="20" r="2"/>
                 </svg>
             </div>
-            <div class="dock-item" onclick="location.href='/keyboard'">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
+            <div class="tab-btn" onclick="location.href='/keyboard'">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect width="20" height="16" x="2" y="4" rx="2"/>
                     <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M10 16h4"/>
                 </svg>
@@ -760,278 +619,367 @@
         </div>
     </div>
 
-    <!-- SETUP SCREEN -->
+    <!-- ── SETUP / PAIRING ────────────────────────────────────────────── -->
     <div id="setup" class="hidden">
         <div class="setup-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                stroke-linecap="round" stroke-linejoin="round">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect width="20" height="14" x="2" y="3" rx="2"/>
                 <line x1="8" x2="16" y1="21" y2="21"/>
                 <line x1="12" x2="12" y1="17" y2="21"/>
             </svg>
         </div>
-        <div class="setup-title">Connect to PC</div>
-        <div class="setup-sub">Enter the IP address shown<br>in the RemoteXS window</div>
-        <input id="ip-input" class="ip-field" placeholder="192.168.x.x:8080" inputmode="url">
+        <div class="setup-h">Connect to PC</div>
+        <div class="setup-sub">Scan the QR code on your PC<br>or enter the address manually</div>
+        <input id="ip-inp" class="ip-inp" placeholder="192.168.x.x:8080" inputmode="url">
+        <div id="setup-err" class="setup-err"></div>
         <button class="connect-btn" onclick="saveIp()">Connect</button>
+        <button class="discover-btn" onclick="discoverServer()">Scan Network</button>
+        <div id="discover-status"></div>
         <div class="setup-footer">REMOTEXS v2.2</div>
     </div>
 
     <script>
-        document.addEventListener('gesturestart', e => e.preventDefault());
+    'use strict';
 
-        // ─── AUTO-DETECT IP FROM URL ─────────────────────────────────────────
-        // When opened via QR scan, the browser URL already contains the server IP.
-        // Extract it automatically — no manual entry needed.
-        let ip = localStorage.getItem('xrd_ip');
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    // Extract token from URL when opened via QR scan
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    if (urlToken) localStorage.setItem('xrd_token', urlToken);
 
-        if (!ip) {
-            const h = window.location.hostname;
-            const p = window.location.port;
-            if (h && h !== 'localhost' && h !== '127.0.0.1') {
-                ip = p ? `${h}:${p}` : h;
-                localStorage.setItem('xrd_ip', ip);
-            }
-        }
+    let token = localStorage.getItem('xrd_token') || '';
 
-        if (!ip) {
-            document.getElementById('setup').classList.remove('hidden');
-        } else {
-            document.getElementById('ip-input').value = ip;
-        }
+    // Persistent device identifier
+    let deviceId = localStorage.getItem('xrd_device_id');
+    if (!deviceId) {
+        deviceId = crypto.getRandomValues(new Uint8Array(8))
+            .reduce((s, b) => s + b.toString(16).padStart(2,'0'), '');
+        localStorage.setItem('xrd_device_id', deviceId);
+    }
 
-        // ─── SETUP ───────────────────────────────────────────────────────────
-        function saveIp() {
-            const val = document.getElementById('ip-input').value.trim();
-            if (!val) return;
-            ip = val;
+    // ── Connection ────────────────────────────────────────────────────────────
+    let ip = localStorage.getItem('xrd_ip');
+
+    // Auto-detect IP from URL (QR scan opens http://192.168.x.x:port/?token=...)
+    if (!ip) {
+        const h = window.location.hostname;
+        const p = window.location.port;
+        if (h && h !== 'localhost' && h !== '127.0.0.1') {
+            ip = p ? `${h}:${p}` : h;
             localStorage.setItem('xrd_ip', ip);
-            document.getElementById('setup').classList.add('hidden');
-            ping();
+        }
+    }
+
+    if (!ip) {
+        document.getElementById('setup').classList.remove('hidden');
+    } else {
+        document.getElementById('ip-inp').value = ip;
+    }
+
+    // ── Setup actions ─────────────────────────────────────────────────────────
+    function saveIp() {
+        const val = document.getElementById('ip-inp').value.trim();
+        if (!val) return;
+        ip = val;
+        localStorage.setItem('xrd_ip', ip);
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('setup-err').textContent = '';
+        ping();
+    }
+
+    function showAuthError(msg) {
+        token = '';
+        localStorage.removeItem('xrd_token');
+        document.getElementById('setup-err').textContent = msg;
+        document.getElementById('setup').classList.remove('hidden');
+    }
+
+    // ── Network discovery ─────────────────────────────────────────────────────
+    async function discoverServer() {
+        const btn = document.querySelector('.discover-btn');
+        const status = document.getElementById('discover-status');
+        btn.disabled = true;
+        status.textContent = 'Detecting network...';
+
+        // Get local subnet via WebRTC
+        let subnet = null;
+        try {
+            const pc = new RTCPeerConnection({ iceServers: [] });
+            pc.createDataChannel('');
+            await pc.createOffer().then(o => pc.setLocalDescription(o));
+            await new Promise(res => {
+                pc.onicecandidate = e => {
+                    if (!e.candidate) return;
+                    const m = /(\d+\.\d+\.\d+)\.\d+/.exec(e.candidate.candidate);
+                    if (m) { subnet = m[1]; res(); }
+                };
+                setTimeout(res, 2000);
+            });
+            pc.close();
+        } catch {}
+
+        if (!subnet) {
+            status.textContent = 'Could not detect local network.';
+            btn.disabled = false;
+            return;
         }
 
-        // ─── NAVIGATION ──────────────────────────────────────────────────────
-        function go(name, el) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('tab-' + name).classList.add('active');
-            document.querySelectorAll('.dock-item').forEach(b => b.classList.remove('active'));
-            el.classList.add('active');
-            if (navigator.vibrate) navigator.vibrate(4);
-        }
+        const scanPort = (ip && ip.includes(':')) ? ip.split(':')[1] : '8080';
+        status.textContent = `Scanning ${subnet}.0/24 on port ${scanPort}...`;
 
-        // ─── SEND COMMAND ─────────────────────────────────────────────────────
-        async function send(cmd, data = {}) {
-            if (!ip) return;
+        // Parallel scan — look for RemoteXS /discover endpoint
+        const ips = Array.from({ length: 254 }, (_, i) => `${subnet}.${i + 1}`);
+        const found = [];
+
+        await Promise.all(ips.map(async host => {
             try {
-                await fetch(`http://${ip}/command`, {
-                    method: 'POST',
-                    body: JSON.stringify({ cmd, ...data })
+                const r = await fetch(`http://${host}:${scanPort}/discover`, {
+                    signal: AbortSignal.timeout(1200)
                 });
-            } catch {}
-        }
-
-        // ─── MACBOOK TRACKPAD ─────────────────────────────────────────────────
-        const pad = document.getElementById('trackpad');
-        let lx = 0, ly = 0, lastCount = 0;
-        let startX = 0, startY = 0, startTime = 0;
-        let hasMoved = false, longTimer = null;
-
-        function cancelLong() {
-            if (longTimer) { clearTimeout(longTimer); longTimer = null; }
-        }
-
-        pad.addEventListener('touchstart', e => {
-            e.preventDefault();
-            const t = e.touches[0];
-            lx = startX = t.clientX;
-            ly = startY = t.clientY;
-            startTime = Date.now();
-            hasMoved = false;
-            lastCount = e.touches.length;
-
-            // Long press → right click
-            if (e.touches.length === 1) {
-                longTimer = setTimeout(() => {
-                    if (!hasMoved) {
-                        send('click_right');
-                        if (navigator.vibrate) navigator.vibrate([8, 40, 8]);
-                        hasMoved = true; // suppress tap-click on release
-                    }
-                }, 520);
-            }
-        }, { passive: false });
-
-        pad.addEventListener('touchend', e => {
-            cancelLong();
-
-            if (!hasMoved) {
-                const dt = Date.now() - startTime;
-                if (dt < 230) {
-                    if (lastCount >= 2) {
-                        // 2-finger tap → right click
-                        send('click_right');
-                        if (navigator.vibrate) navigator.vibrate(10);
-                    } else {
-                        // 1-finger tap → left click
-                        send('click_left');
-                        if (navigator.vibrate) navigator.vibrate(4);
-                    }
+                if (r.ok) {
+                    const j = await r.json();
+                    if (j.app === 'RemoteXS') found.push({ host: `${host}:${scanPort}`, name: j.host });
                 }
-            }
+            } catch {}
+        }));
 
-            if (e.touches.length > 0) {
-                lx = e.touches[0].clientX;
-                ly = e.touches[0].clientY;
+        btn.disabled = false;
+
+        if (!found.length) {
+            status.textContent = 'No RemoteXS servers found.';
+            return;
+        }
+
+        if (found.length === 1) {
+            ip = found[0].host;
+            localStorage.setItem('xrd_ip', ip);
+            document.getElementById('ip-inp').value = ip;
+            status.textContent = `Found: ${found[0].name} — scan QR for token`;
+        } else {
+            status.textContent = found.map(f => `${f.name} (${f.host})`).join(' · ');
+        }
+    }
+
+    // ── API fetch wrapper with auth ───────────────────────────────────────────
+    async function apiFetch(path, options = {}) {
+        const res = await fetch(`http://${ip}${path}`, {
+            ...options,
+            headers: {
+                'X-Token': token,
+                'X-Device-ID': deviceId,
+                ...(options.headers || {})
             }
-            lastCount = e.touches.length;
         });
 
-        pad.addEventListener('touchmove', e => {
-            if (e.cancelable) e.preventDefault();
+        if (res.status === 401) {
+            showAuthError('Token expired or invalid. Rescan QR code.');
+            throw new Error('unauthorized');
+        }
+        if (res.status === 429) {
+            throw new Error('rate-limited');
+        }
+        return res;
+    }
 
-            // Finger count changed mid-gesture — reset reference point
-            if (e.touches.length !== lastCount) {
-                cancelLong();
-                lastCount = e.touches.length;
-                if (e.touches.length > 0) {
-                    lx = e.touches[0].clientX;
-                    ly = e.touches[0].clientY;
-                }
-                return;
-            }
-
-            const cx = e.touches[0].clientX;
-            const cy = e.touches[0].clientY;
-
-            // Cancel long press once there's meaningful movement
-            if (!hasMoved && Math.hypot(cx - startX, cy - startY) > 4) {
-                hasMoved = true;
-                cancelLong();
-            }
-
-            if (e.touches.length === 2) {
-                // 2-finger natural scroll
-                const dy = -(cy - ly) * 2.8;
-                const dx = -(e.touches[0].clientX - lx) * 2.8;
-                if (Math.abs(dy) > 0.4 || Math.abs(dx) > 0.4) send('scroll', { y: dy });
-                lx = cx; ly = cy;
-            } else if (e.touches.length === 1) {
-                const dx = (cx - lx) * 2.0;
-                const dy = (cy - ly) * 2.0;
-                if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) send('mouse_move', { x: dx, y: dy });
-                lx = cx; ly = cy;
-            }
-        }, { passive: false });
-
-        // ─── SLIDER DRAG GUARD ───────────────────────────────────────────────
-        let isDragging = false;
-
-        function setupSliders() {
-            document.querySelectorAll('input[type=range]').forEach(sl => {
-                sl.addEventListener('touchstart', () => { isDragging = true; }, { passive: true });
-                sl.addEventListener('touchend', () => { setTimeout(() => { isDragging = false; }, 700); }, { passive: true });
-                sl.addEventListener('mousedown', () => { isDragging = true; });
-                sl.addEventListener('mouseup', () => { setTimeout(() => { isDragging = false; }, 150); });
+    async function send(cmd, data = {}) {
+        if (!ip) return;
+        try {
+            await apiFetch('/command', {
+                method: 'POST',
+                body: JSON.stringify({ cmd, ...data })
             });
-        }
-        window.addEventListener('load', setupSliders);
+        } catch {}
+    }
 
-        // ─── MIXER ───────────────────────────────────────────────────────────
-        async function loadMixer() {
-            if (!ip) return;
-            const list = document.getElementById('mixer-list');
-            list.innerHTML = '<div class="empty-state">Loading...</div>';
-            try {
-                const apps = await fetch(`http://${ip}/mixer`).then(r => r.json());
-                if (!apps.length) {
-                    list.innerHTML = '<div class="empty-state">No active audio sessions</div>';
-                    return;
+    // ── Navigation ────────────────────────────────────────────────────────────
+    function go(name, el) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+        el.classList.add('on');
+        if (navigator.vibrate) navigator.vibrate(4);
+    }
+
+    // ── MacBook trackpad ──────────────────────────────────────────────────────
+    const pad = document.getElementById('trackpad');
+    let lx = 0, ly = 0, lastCount = 0;
+    let sx = 0, sy = 0, st = 0, moved = false, longT = null;
+
+    const cancelLong = () => { if (longT) { clearTimeout(longT); longT = null; } };
+
+    pad.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        lx = sx = t.clientX; ly = sy = t.clientY;
+        st = Date.now(); moved = false; lastCount = e.touches.length;
+
+        if (e.touches.length === 1) {
+            longT = setTimeout(() => {
+                if (!moved) {
+                    send('click_right');
+                    if (navigator.vibrate) navigator.vibrate([8,40,8]);
+                    moved = true;
                 }
-                const card = document.createElement('div');
-                card.className = 'mix-list';
-                apps.forEach(app => {
-                    const row = document.createElement('div');
-                    row.className = 'mix-item';
-                    const speakerSvg = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
-                    const cpuSvg = '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>';
-                    const iconHtml = app.icon
-                        ? `<img src="data:image/png;base64,${app.icon}" class="app-icon" alt="">`
-                        : `<div class="app-icon-ph"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${app.pid === -1 ? speakerSvg : cpuSvg}</svg></div>`;
-                    row.innerHTML = `
-                        ${iconHtml}
-                        <div class="app-label">${app.name}</div>
-                        <input type="range" class="mix-range" min="0" max="100" value="${app.vol}"
-                               oninput="send('set_vol',{id:${app.pid},vol:parseInt(this.value)})">
-                    `;
-                    card.appendChild(row);
-                });
-                list.innerHTML = '';
-                list.appendChild(card);
-                setupSliders();
-            } catch {
-                list.innerHTML = '<div class="empty-state">Disconnected</div>';
-            }
+            }, 520);
         }
+    }, { passive: false });
 
-        // ─── PING / STATE SYNC ────────────────────────────────────────────────
-        let lastTitle = '';
-        let lastPlaying = null;
+    pad.addEventListener('touchend', e => {
+        cancelLong();
+        if (!moved && Date.now() - st < 230) {
+            lastCount >= 2 ? send('click_right') : send('click_left');
+            if (navigator.vibrate) navigator.vibrate(4);
+        }
+        if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+        lastCount = e.touches.length;
+    });
 
-        async function ping() {
-            if (!ip) return;
-            try {
-                const res = await fetch(`http://${ip}/ping`).then(r => r.json());
-                document.getElementById('status-dot').classList.add('online');
-                document.getElementById('status-label').textContent = 'Connected';
+    pad.addEventListener('touchmove', e => {
+        if (e.cancelable) e.preventDefault();
+        if (e.touches.length !== lastCount) {
+            cancelLong(); lastCount = e.touches.length;
+            if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+            return;
+        }
+        const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+        if (!moved && Math.hypot(cx - sx, cy - sy) > 4) { moved = true; cancelLong(); }
 
-                const parts = res.window.split(' • ');
-                const title = parts[0] || 'Not Playing';
-                const artist = parts[1] || 'System Idle';
+        if (e.touches.length === 2) {
+            const dy = -(cy - ly) * 2.8;
+            if (Math.abs(dy) > 0.4) send('scroll', { y: dy });
+            lx = cx; ly = cy;
+        } else if (e.touches.length === 1) {
+            const dx = (cx - lx) * 2.0, dy = (cy - ly) * 2.0;
+            if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) send('mouse_move', { x: dx, y: dy });
+            lx = cx; ly = cy;
+        }
+    }, { passive: false });
 
-                if (title !== lastTitle) {
-                    lastTitle = title;
-                    const artEl = document.getElementById('art');
-                    artEl.classList.add('fade');
-                    setTimeout(() => {
-                        document.getElementById('track').textContent = title;
-                        document.getElementById('artist').textContent = artist;
-                        if (res.cover) {
-                            const url = `url('data:image/png;base64,${res.cover}')`;
-                            artEl.style.backgroundImage = url;
-                            const bg = document.getElementById('cover-bg');
-                            bg.style.backgroundImage = url;
-                            bg.style.opacity = '1';
-                        } else {
-                            artEl.style.backgroundImage = '';
-                            document.getElementById('cover-bg').style.opacity = '0';
-                        }
-                        artEl.classList.remove('fade');
-                    }, 240);
-                }
+    // ── Slider drag guard ─────────────────────────────────────────────────────
+    let dragging = false;
+    function setupSliders() {
+        document.querySelectorAll('input[type=range]').forEach(s => {
+            s.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
+            s.addEventListener('touchend',   () => { setTimeout(() => { dragging = false; }, 700); }, { passive: true });
+            s.addEventListener('mousedown',  () => { dragging = true; });
+            s.addEventListener('mouseup',    () => { setTimeout(() => { dragging = false; }, 150); });
+        });
+    }
+    window.addEventListener('load', setupSliders);
 
-                if (res.playing !== lastPlaying) {
-                    lastPlaying = res.playing;
-                    const icon = document.getElementById('play-icon');
-                    if (res.playing) {
-                        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    // ── Mixer ─────────────────────────────────────────────────────────────────
+    async function loadMixer() {
+        if (!ip) return;
+        const list = document.getElementById('mixer-list');
+        list.innerHTML = '<div class="empty">Loading...</div>';
+        try {
+            const apps = await apiFetch('/mixer').then(r => r.json());
+            if (!apps.length) { list.innerHTML = '<div class="empty">No audio sessions</div>'; return; }
+            const card = document.createElement('div'); card.className = 'mix-card';
+            const sp = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+            const cp = '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>';
+            apps.forEach(a => {
+                const row = document.createElement('div'); row.className = 'mix-row';
+                const ico = a.icon
+                    ? `<img src="data:image/png;base64,${a.icon}" class="app-ic" alt="">`
+                    : `<div class="app-ph"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.pid===-1?sp:cp}</svg></div>`;
+                row.innerHTML = `${ico}<div class="app-nm">${a.name}</div>
+                    <input type="range" class="mslider" min="0" max="100" value="${a.vol}"
+                           oninput="send('set_vol',{id:${a.pid},vol:parseInt(this.value)})">`;
+                card.appendChild(row);
+            });
+            list.innerHTML = ''; list.appendChild(card);
+            setupSliders();
+        } catch { list.innerHTML = '<div class="empty">Disconnected</div>'; }
+    }
+
+    // ── Media state ───────────────────────────────────────────────────────────
+    let lastTitle = '', lastPlaying = null;
+    let trackPos = 0, trackDur = 0, lastPingTime = 0;
+
+    function fmt(sec) {
+        const s = Math.floor(sec), m = Math.floor(s / 60);
+        return `${m}:${String(s % 60).padStart(2,'0')}`;
+    }
+
+    // Interpolate progress between pings for smooth animation
+    function tickProgress() {
+        if (!lastPlaying || trackDur <= 0) return;
+        const elapsed = (Date.now() - lastPingTime) / 1000;
+        const cur = Math.min(trackPos + elapsed, trackDur);
+        document.getElementById('progress-fill').style.width = `${(cur / trackDur) * 100}%`;
+        document.getElementById('t-pos').textContent = fmt(cur);
+    }
+    setInterval(tickProgress, 500);
+
+    async function ping() {
+        if (!ip) return;
+        try {
+            const res = await apiFetch('/ping').then(r => r.json());
+            document.getElementById('dot').classList.add('on');
+            document.getElementById('status').textContent = 'Connected';
+
+            const parts = res.window.split(' • ');
+            const title = parts[0] || 'Not Playing';
+            const artist = parts[1] || 'System Idle';
+
+            // Album art transition
+            if (title !== lastTitle) {
+                lastTitle = title;
+                const art = document.getElementById('art');
+                art.classList.add('fade');
+                setTimeout(() => {
+                    document.getElementById('track-title').textContent = title;
+                    document.getElementById('track-artist').textContent = artist;
+                    if (res.cover) {
+                        const url = `url('data:image/png;base64,${res.cover}')`;
+                        art.style.backgroundImage = url;
+                        document.getElementById('bg').style.backgroundImage = url;
+                        document.getElementById('bg').style.opacity = '1';
                     } else {
-                        icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+                        art.style.backgroundImage = '';
+                        document.getElementById('bg').style.opacity = '0';
                     }
-                    icon.setAttribute('fill', 'black');
-                }
+                    art.classList.remove('fade');
+                }, 240);
+            }
 
-                const sl = document.querySelector('.vol-range');
-                if (sl && !isDragging) sl.value = res.volume;
+            // Play / pause icon
+            if (res.playing !== lastPlaying) {
+                lastPlaying = res.playing;
+                const icon = document.getElementById('play-icon');
+                icon.innerHTML = res.playing
+                    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+                    : '<polygon points="5 3 19 12 5 21 5 3"/>';
+                icon.setAttribute('fill', 'black');
+            }
 
-            } catch {
-                document.getElementById('status-dot').classList.remove('online');
-                document.getElementById('status-label').textContent = 'RemoteXS';
+            // Progress bar & times
+            trackPos = res.position || 0;
+            trackDur = res.duration || 0;
+            lastPingTime = Date.now();
+            document.getElementById('t-dur').textContent = fmt(trackDur);
+            if (trackDur > 0) {
+                document.getElementById('progress-fill').style.width = `${(trackPos / trackDur) * 100}%`;
+                document.getElementById('t-pos').textContent = fmt(trackPos);
+            }
+
+            // Volume slider
+            const sl = document.querySelector('.vslider');
+            if (sl && !dragging) sl.value = res.volume;
+
+        } catch (e) {
+            if (e.message !== 'unauthorized') {
+                document.getElementById('dot').classList.remove('on');
+                document.getElementById('status').textContent = 'RemoteXS';
             }
         }
+    }
 
-        if (ip) ping();
-        setInterval(ping, 400);
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    if (ip) ping();
+    setInterval(ping, 400);
     </script>
 </body>
-
 </html>

@@ -1,13 +1,13 @@
-﻿<Window x:Class="XrdRemote.MainWindow"
+<Window x:Class="XrdRemote.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="RemoteXS" Height="520" Width="380"
         Background="Transparent" WindowStyle="None" AllowsTransparency="True"
         MouseLeftButtonDown="Window_MouseDown">
 
-    <Border CornerRadius="16" Background="#0A0A0A" BorderBrush="#1F1F1F" BorderThickness="1.5">
+    <Border CornerRadius="16" Background="#0A0A0A" BorderBrush="#1A1A1A" BorderThickness="1">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.6"/>
+            <DropShadowEffect BlurRadius="40" ShadowDepth="0" Opacity="0.5"/>
         </Border.Effect>
 
         <Grid>
@@ -17,45 +17,49 @@
                 <RowDefinition Height="40"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="#111111" CornerRadius="16,16,0,0" BorderBrush="#1F1F1F" BorderThickness="0,0,0,1">
+            <Border Grid.Row="0" Background="#0F0F0F" CornerRadius="16,16,0,0" BorderBrush="#1A1A1A" BorderThickness="0,0,0,1">
                 <Grid Margin="20,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Ellipse Width="8" Height="8" Fill="#00E676" Margin="0,0,12,0"/>
-                        <TextBlock Text="REMOTEXS" Foreground="White" FontWeight="Bold" FontSize="13"/>
-                        <TextBlock Text="ULTRA" Foreground="#555" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <Ellipse Width="7" Height="7" Fill="#30D158" Margin="0,0,12,0">
+                            <Ellipse.Effect>
+                                <DropShadowEffect BlurRadius="8" Color="#30D158" Opacity="0.5" ShadowDepth="0"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="REMOTEXS" Foreground="#CCCCCC" FontWeight="SemiBold" FontSize="12"/>
+                        <TextBlock Text="ULTRA" Foreground="#444" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="Bold"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="⚙️" Width="35" Height="35" Style="{DynamicResource ToolBtn}" Click="Settings_Click"/>
-                        <Button Content="—" Width="35" Height="35" Style="{DynamicResource ToolBtn}" Click="Minimize_Click"/>
-                        <Button Content="✕" Width="35" Height="35" Style="{DynamicResource CloseBtn}" Click="CloseToTray_Click"/>
+                        <Button Content="⚙" Width="34" Height="34" Style="{DynamicResource ToolBtn}" Click="Settings_Click"/>
+                        <Button Content="—" Width="34" Height="34" Style="{DynamicResource ToolBtn}" Click="Minimize_Click"/>
+                        <Button Content="✕" Width="34" Height="34" Style="{DynamicResource CloseBtn}" Click="CloseToTray_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <StackPanel Grid.Row="1" VerticalAlignment="Center">
-                <Border Width="240" Height="240" Background="White" CornerRadius="20" Padding="15" Margin="0,0,0,30">
+                <Border Width="240" Height="240" Background="White" CornerRadius="20" Padding="14" Margin="0,0,0,28">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="25" Color="#00E676" Opacity="0.15" ShadowDepth="0"/>
+                        <DropShadowEffect BlurRadius="30" Color="#000000" Opacity="0.3" ShadowDepth="0"/>
                     </Border.Effect>
                     <Image x:Name="QrImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                 </Border>
 
-                <TextBlock Text="LOCAL ACCESS POINT" Foreground="#444" FontSize="10" FontWeight="Black" HorizontalAlignment="Center"/>
-                <Border Background="#141414" CornerRadius="10" Padding="20,12" Margin="40,10" BorderBrush="#1F1F1F" BorderThickness="1">
-                    <TextBlock x:Name="IpText" Text="INITIALIZING..." Foreground="#00E676" 
-                               FontSize="18" FontFamily="Consolas" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="LOCAL ACCESS POINT" Foreground="#3A3A3A" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <Border Background="#111111" CornerRadius="10" Padding="20,12" Margin="40,10" BorderBrush="#1A1A1A" BorderThickness="1">
+                    <TextBlock x:Name="IpText" Text="INITIALIZING..." Foreground="#E0E0E0"
+                               FontSize="17" FontFamily="Consolas" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="Scan to sync your workstation" Foreground="#666" FontSize="11" HorizontalAlignment="Center"/>
+                <TextBlock Text="Scan to connect your device" Foreground="#3A3A3A" FontSize="11" HorizontalAlignment="Center"/>
             </StackPanel>
 
-            <Border Grid.Row="2" Background="#0F0F0F" CornerRadius="0,0,16,16" BorderBrush="#1F1F1F" BorderThickness="0,1,0,0">
+            <Border Grid.Row="2" Background="#0A0A0A" CornerRadius="0,0,16,16" BorderBrush="#1A1A1A" BorderThickness="0,1,0,0">
                 <DockPanel Margin="20,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="●" Foreground="#00E676" FontSize="8" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="SYSTEM ACTIVE" Foreground="#555" FontSize="9" FontWeight="Bold"/>
+                        <Ellipse Width="5" Height="5" Fill="#30D158" Margin="0,0,7,0"/>
+                        <TextBlock Text="SERVER ACTIVE" Foreground="#3A3A3A" FontSize="9" FontWeight="Bold"/>
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v2.2-BETA" Foreground="#333" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="VersionText" Text="v2.2" Foreground="#2A2A2A" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                 </DockPanel>
             </Border>
         </Grid>
@@ -64,7 +68,7 @@
     <Window.Resources>
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="Foreground" Value="#555"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -78,15 +82,16 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#222"/>
-                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Background" Value="#1E1E1E"/>
+                    <Setter Property="Foreground" Value="#CCCCCC"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="CloseBtn" TargetType="Button" BasedOn="{StaticResource ToolBtn}">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E53935"/>
+                    <Setter Property="Background" Value="#C0392B"/>
+                    <Setter Property="Foreground" Value="White"/>
                 </Trigger>
             </Style.Triggers>
         </Style>

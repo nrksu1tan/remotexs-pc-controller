@@ -1,18 +1,17 @@
 ﻿using System;
-using System.Windows;
 using System.Collections.Generic;
-using System.Drawing; 
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Linq;
 using System.Windows.Media.Imaging;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
@@ -32,16 +31,15 @@ namespace XrdRemote
         private string _localIp;
         private int _currentPort = 8080;
         
-        // Трей
         private Forms.NotifyIcon _trayIcon;
 
         public MainWindow()
         {
             InitializeComponent();
-            InitializeTrayIcon(); // Запускаем иконку в трее
-            InitializeAudio();     
-            InitializeMediaManager(); 
-            StartServer();        
+            InitializeTrayIcon();
+            InitializeAudio();
+            InitializeMediaManager();
+            StartServer();
         }
 
 private void Settings_Click(object sender, RoutedEventArgs e)
@@ -64,38 +62,30 @@ public void UpdateServerPort(int newPort)
     }
     StartServer();
 }
-        // --- ЛОГИКА ТРЕЯ ---
-private void InitializeTrayIcon()
-{
-    _trayIcon = new Forms.NotifyIcon();
-    
-    // Рисуем иконку (зеленый круг)
-    // Используем System.Drawing явно, чтобы не путать с WPF
-    using (var bmp = new System.Drawing.Bitmap(16, 16))
-    using (var g = System.Drawing.Graphics.FromImage(bmp))
-    {
-        g.Clear(System.Drawing.Color.Transparent);
-        g.FillEllipse(System.Drawing.Brushes.LimeGreen, 2, 2, 12, 12);
-        g.DrawEllipse(System.Drawing.Pens.Black, 2, 2, 12, 12);
+        private void InitializeTrayIcon()
+        {
+            _trayIcon = new Forms.NotifyIcon();
 
-        // --- ВОТ ЗДЕСЬ БЫЛА ОШИБКА ---
-        // Было: Icon.FromHandle(...) -> Конфликт с this.Icon окна
-        // Стало: System.Drawing.Icon.FromHandle(...) -> Четкое указание класса
-        _trayIcon.Icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
-    }
-    
-    _trayIcon.Text = "XRD Remote Server";
-    _trayIcon.Visible = true;
-    
-    // Меню трея
-    var contextMenu = new Forms.ContextMenuStrip();
-    contextMenu.Items.Add("Открыть", null, (s, e) => ShowWindow());
-    contextMenu.Items.Add("-");
-    contextMenu.Items.Add("Выход", null, (s, e) => ExitApp());
-    _trayIcon.ContextMenuStrip = contextMenu;
+            using (var bmp = new System.Drawing.Bitmap(16, 16))
+            using (var g = System.Drawing.Graphics.FromImage(bmp))
+            {
+                g.Clear(System.Drawing.Color.Transparent);
+                g.FillEllipse(System.Drawing.Brushes.LimeGreen, 2, 2, 12, 12);
+                g.DrawEllipse(System.Drawing.Pens.Black, 2, 2, 12, 12);
+                _trayIcon.Icon = System.Drawing.Icon.FromHandle(bmp.GetHicon());
+            }
 
-    _trayIcon.DoubleClick += (s, e) => ShowWindow();
-}
+            _trayIcon.Text = "RemoteXS Server";
+            _trayIcon.Visible = true;
+
+            var contextMenu = new Forms.ContextMenuStrip();
+            contextMenu.Items.Add("Open", null, (s, e) => ShowWindow());
+            contextMenu.Items.Add("-");
+            contextMenu.Items.Add("Exit", null, (s, e) => ExitApp());
+            _trayIcon.ContextMenuStrip = contextMenu;
+
+            _trayIcon.DoubleClick += (s, e) => ShowWindow();
+        }
 
         private void ShowWindow()
         {
@@ -111,23 +101,20 @@ private void InitializeTrayIcon()
             Application.Current.Shutdown();
         }
 
-        // Кнопки окна
         private void CloseToTray_Click(object sender, RoutedEventArgs e)
         {
-            Hide(); // Скрываем окно, но приложение работает
-            _trayIcon.ShowBalloonTip(3000, "XRD Server", "Сервер свернут в трей", Forms.ToolTipIcon.Info);
+            Hide();
+            _trayIcon.ShowBalloonTip(2000, "RemoteXS", "Server is running in the background", Forms.ToolTipIcon.Info);
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         
-        // Перетаскивание окна за любое место
         private void Window_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (e.ChangedButton == System.Windows.Input.MouseButton.Left)
                 this.DragMove();
         }
 
-        // --- ИНИЦИАЛИЗАЦИЯ ---
         private void InitializeAudio()
         {
             try
@@ -147,25 +134,25 @@ private void InitializeTrayIcon()
             catch { }
         }
 
-private void StartServer()
-{
-    try
-    {
-        _localIp = GetLocalIpAddress();
-        string url = $"http://{_localIp}:{_currentPort}"; // Используем переменную
-        IpText.Text = $"{_localIp}:{_currentPort}";
-        GenerateQr(url);
+        private void StartServer()
+        {
+            try
+            {
+                _localIp = GetLocalIpAddress();
+                string url = $"http://{_localIp}:{_currentPort}";
+                IpText.Text = $"{_localIp}:{_currentPort}";
+                GenerateQr(url);
 
-        _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://*:{_currentPort}/"); 
-        _listener.Start();
-        Task.Run(ListenLoop);
-    }
-    catch (Exception ex) 
-    { 
-        MessageBox.Show("Ошибка сервера: " + ex.Message + "\nПопробуйте запустить от имени администратора для смены порта."); 
-    }
-}
+                _listener = new HttpListener();
+                _listener.Prefixes.Add($"http://*:{_currentPort}/");
+                _listener.Start();
+                Task.Run(ListenLoop);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Server error: " + ex.Message + "\nTry running as administrator to use a different port.");
+            }
+        }
 
         private string GetLocalIpAddress()
         {
@@ -195,7 +182,6 @@ private void StartServer()
             }
         }
 
-        // --- СЕРВЕР ---
         private async Task ListenLoop()
         {
             while (_listener.IsListening)
@@ -217,12 +203,12 @@ private async void HandleRequest(HttpListenerContext context)
             string response = "{}";
             int code = 200;
             string contentType = "application/json";
-            byte[] responseBytes = null; // Буфер для ответа
+            byte[] responseBytes = null;
 
             context.Response.AppendHeader("Access-Control-Allow-Origin", "*");
             context.Response.AppendHeader("Access-Control-Allow-Methods", "POST, GET");
             context.Response.AppendHeader("Access-Control-Allow-Headers", "Content-Type");
-            
+
             if (method == "OPTIONS")
             {
                 context.Response.Close();
@@ -252,21 +238,19 @@ private async void HandleRequest(HttpListenerContext context)
                     }
                 }
                 else if (rawUrl == "/keyboard")
-{
-    contentType = "text/html";
-    response = KeyboardModule.GetHtml(); // <--- Добавляем эту строку
-}
+                {
+                    contentType = "text/html";
+                    response = KeyboardModule.GetHtml();
+                }
                 else
                 {
-                    // --- ГЛАВНОЕ ИЗМЕНЕНИЕ: ЧИТАЕМ ИЗ РЕСУРСОВ ---
-                    // Если запрашивают сайт (корень), отдаем встроенный HTML
                     string html = GetEmbeddedSite();
                     if (!string.IsNullOrEmpty(html))
                     {
                         contentType = "text/html";
                         responseBytes = Encoding.UTF8.GetBytes(html);
                     }
-                    else 
+                    else
                     {
                         context.Response.StatusCode = 404;
                         context.Response.Close();
@@ -280,7 +264,6 @@ private async void HandleRequest(HttpListenerContext context)
                 response = JsonSerializer.Serialize(new { error = ex.Message });
             }
 
-            // Если байты не были сформированы (например, это JSON ответ), кодируем строку response
             if (responseBytes == null)
             {
                 responseBytes = Encoding.UTF8.GetBytes(response);
@@ -295,39 +278,27 @@ private async void HandleRequest(HttpListenerContext context)
             
         }
 
-        // --- НОВЫЙ МЕТОД: ДОСТАЕТ САЙТ ИЗ EXE ---
-private string GetEmbeddedSite()
-{
-    try
-    {
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-        
-        // --- МАГИЯ: Ищем ресурс автоматически ---
-        // Получаем список ВСЕХ зашитых файлов и берем первый, который кончается на index.html
-        string resourceName = assembly.GetManifestResourceNames()
-                                      .FirstOrDefault(str => str.EndsWith("index.html"));
-
-        if (string.IsNullOrEmpty(resourceName)) 
+        private string GetEmbeddedSite()
         {
-            // Если всё еще не находит, выводим список того, что есть (для отладки)
-            string allResources = string.Join(", ", assembly.GetManifestResourceNames());
-            return $"<h1>Error: index.html not found. Available: {allResources}</h1>";
-        }
-
-        using (var stream = assembly.GetManifestResourceStream(resourceName))
-        {
-            if (stream == null) return "<h1>Error: Stream is null</h1>";
-            using (var reader = new StreamReader(stream))
+            try
             {
-                return reader.ReadToEnd();
+                var assembly = Assembly.GetExecutingAssembly();
+                string resourceName = assembly.GetManifestResourceNames()
+                                              .FirstOrDefault(n => n.EndsWith("index.html"));
+                if (string.IsNullOrEmpty(resourceName)) return null;
+
+                using (var stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null) return null;
+                    using (var reader = new StreamReader(stream))
+                        return reader.ReadToEnd();
+                }
+            }
+            catch
+            {
+                return null;
             }
         }
-    }
-    catch (Exception ex)
-    {
-        return $"<h1>Error: {ex.Message}</h1>";
-    }
-}
         private List<MixerItem> GetMixerData()
         {
             var list = new List<MixerItem>();
@@ -335,13 +306,12 @@ private string GetEmbeddedSite()
             {
                 if (_audioDevice == null) return list;
 
-                // 1. Master Volume
                 list.Add(new MixerItem
                 {
                     pid = -1,
-                    name = "Общая громкость",
+                    name = "Master Volume",
                     vol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100),
-                    icon = "" // Пустая строка = стандартная иконка на клиенте
+                    icon = ""
                 });
 
                 // 2. Apps
@@ -477,7 +447,7 @@ private async Task<object> GetMediaInfo()
     string window = "PC Connected";
     string cover = "";
     int currentVol = 0;
-    bool isPlaying = false; // Новая переменная
+    bool isPlaying = false;
 
     try
     {
@@ -491,7 +461,6 @@ private async Task<object> GetMediaInfo()
             var s = _mediaManager.GetCurrentSession();
             if (s != null)
             {
-                // Получаем статус: Playing, Paused, и т.д.
                 var playbackInfo = s.GetPlaybackInfo();
                 isPlaying = playbackInfo.Controls.IsPauseEnabled && 
                             playbackInfo.PlaybackStatus == Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
@@ -513,10 +482,9 @@ private async Task<object> GetMediaInfo()
     }
     catch { }
     
-    // Добавляем 'playing' в ответ
-    return new { window = window, cover = cover, volume = currentVol, playing = isPlaying };
+    return new { window, cover, volume = currentVol, playing = isPlaying };
 }
-        // --- WinAPI ---
+        // WinAPI
         [DllImport("user32.dll")] static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
         [DllImport("user32.dll")] static extern bool SetCursorPos(int X, int Y);
         [DllImport("user32.dll")] static extern bool GetCursorPos(out Point lpPoint);

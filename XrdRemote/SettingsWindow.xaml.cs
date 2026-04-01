@@ -12,7 +12,6 @@ namespace XrdRemote
             InitializeComponent();
             PortBox.Text = currentPort.ToString();
 
-            // Проверка автозагрузки
             using (RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false))
             {
                 AutostartCheck.IsChecked = rk.GetValue(AppName) != null;
@@ -21,11 +20,10 @@ namespace XrdRemote
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            // Сохранение автозагрузки
             using (RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
             {
                 if (AutostartCheck.IsChecked == true)
-                    rk.SetValue(AppName, System.Environment.ProcessPath); // Для .NET 6+
+                    rk.SetValue(AppName, System.Environment.ProcessPath);
                 else
                     rk.DeleteValue(AppName, false);
             }
@@ -35,7 +33,10 @@ namespace XrdRemote
                 ((MainWindow)Application.Current.MainWindow).UpdateServerPort(newPort);
                 this.Close();
             }
-            else { MessageBox.Show("Некорректный порт"); }
+            else
+            {
+                MessageBox.Show("Invalid port number.");
+            }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => this.Close();

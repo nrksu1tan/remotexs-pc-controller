@@ -6,11 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -33,18 +35,18 @@ namespace XrdRemote
         private int _currentPort = 8080;
         private Forms.NotifyIcon _trayIcon;
 
-        // ── Security ──────────────────────────────────────────────────────────
         private string _sessionToken;
-
-        // IP → (failCount, banUntil)
         private readonly Dictionary<string, (int Attempts, DateTime BanUntil)> _rateLimits = new();
-
-        // IP → (deviceId, lastSeen)
         private readonly Dictionary<string, (string DeviceId, DateTime LastSeen)> _activeSessions = new();
-
         private readonly object _secLock = new();
 
-        // ─────────────────────────────────────────────────────────────────────
+        private readonly List<WebSocket> _wsClients = new();
+        private readonly object _wsLock = new();
+        private Timer _wsTimer;
+
+        private string TokenFilePath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "RemoteXS", "token.txt");
 
         public MainWindow()
         {
@@ -54,8 +56,6 @@ namespace XrdRemote
             InitializeMediaManager();
             StartServer();
         }
-
-        // ── Window controls ───────────────────────────────────────────────────
 
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
@@ -67,10 +67,9 @@ namespace XrdRemote
 
         private void RegenerateToken_Click(object sender, RoutedEventArgs e)
         {
-            if (MessageBox.Show("Regenerate access token?\nAll connected devices will be disconnected.",
+            if (MessageBox.Show("Regenerate PIN?\nAll connected devices will be disconnected.",
                     "RemoteXS", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
-
             RegenerateToken();
         }
 
@@ -90,14 +89,7 @@ namespace XrdRemote
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-        private void Window_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == System.Windows.Input.MouseButton.Left)
-                DragMove();
-        }
-
-        // ── Tray ──────────────────────────────────────────────────────────────
+        private void Window_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e) { if (e.ChangedButton == System.Windows.Input.MouseButton.Left) DragMove(); }
 
         private void InitializeTrayIcon()
         {
@@ -112,7 +104,6 @@ namespace XrdRemote
             }
             _trayIcon.Text = "RemoteXS Server";
             _trayIcon.Visible = true;
-
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("Open", null, (s, e) => ShowWindow());
             menu.Items.Add("-");
@@ -122,81 +113,89 @@ namespace XrdRemote
         }
 
         private void ShowWindow() { Show(); WindowState = WindowState.Normal; Activate(); }
-
-        private void ExitApp()
-        {
-            _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-            Application.Current.Shutdown();
-        }
-
-        // ── Audio ─────────────────────────────────────────────────────────────
+        private void ExitApp() { _wsTimer?.Dispose(); _trayIcon.Visible = false; _trayIcon.Dispose(); Application.Current.Shutdown(); }
 
         private void InitializeAudio()
         {
-            try
-            {
-                var en = new MMDeviceEnumerator();
-                _audioDevice = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            }
+            try { var en = new MMDeviceEnumerator(); _audioDevice = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); }
             catch { _audioDevice = null; }
         }
 
-        private void EnsureAudioDevice()
+        private void EnsureAudioDevice() { if (_audioDevice != null) return; InitializeAudio(); }
+        private async void InitializeMediaManager() { try { _mediaManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync(); } catch { } }
+
+        private string GenerateToken() => RandomNumberGenerator.GetInt32(1000, 10000).ToString("D4");
+
+        private string LoadSavedToken()
         {
-            if (_audioDevice != null) return;
-            InitializeAudio();
+            try { if (File.Exists(TokenFilePath)) return File.ReadAllText(TokenFilePath).Trim(); } catch { }
+            return null;
         }
 
-        private async void InitializeMediaManager()
+        private void SaveToken(string t)
         {
-            try { _mediaManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync(); }
-            catch { }
+            try { Directory.CreateDirectory(Path.GetDirectoryName(TokenFilePath)!); File.WriteAllText(TokenFilePath, t); } catch { }
         }
-
-        // ── Server ────────────────────────────────────────────────────────────
-
-        private string GenerateToken()
-            => Convert.ToHexString(RandomNumberGenerator.GetBytes(4)).ToLower(); // 8 hex chars
 
         private void StartServer()
         {
             try
             {
-                _sessionToken = GenerateToken();
+                var saved = LoadSavedToken();
+                if (string.IsNullOrEmpty(saved) || saved.Length != 4 || !saved.All(char.IsDigit))
+                {
+                    _sessionToken = GenerateToken();
+                    SaveToken(_sessionToken);
+                }
+                else { _sessionToken = saved; }
+
                 _localIp = GetLocalIpAddress();
                 string url = $"http://{_localIp}:{_currentPort}/?token={_sessionToken}";
 
                 IpText.Text = $"{_localIp}:{_currentPort}";
+                PinText.Text = $"PIN: {_sessionToken}";
                 GenerateQr(url);
                 RefreshClientCount();
 
                 _listener = new HttpListener();
-                _listener.Prefixes.Add($"http://*:{_currentPort}/");
+                _listener.Prefixes.Add($"http://{_localIp}:{_currentPort}/");
+                _listener.Prefixes.Add($"http://127.0.0.1:{_currentPort}/");
                 _listener.Start();
                 Task.Run(ListenLoop);
+
+                _wsTimer?.Dispose();
+                _wsTimer = new Timer(_ => { _ = BroadcastState(); }, null, 300, 300);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Server error: " + ex.Message +
-                    "\nTry running as administrator to use a different port.");
+                MessageBox.Show($"Ошибка запуска сервера: {ex.Message}\nПроверь брандмауэр и не занят ли порт.", "Критическая ошибка");
             }
         }
 
         private void RegenerateToken()
         {
             _sessionToken = GenerateToken();
+            SaveToken(_sessionToken);
             lock (_secLock) _activeSessions.Clear();
-
             string url = $"http://{_localIp}:{_currentPort}/?token={_sessionToken}";
-            Dispatcher.Invoke(() => { GenerateQr(url); RefreshClientCount(); });
+            Dispatcher.Invoke(() => { PinText.Text = $"PIN: {_sessionToken}"; GenerateQr(url); RefreshClientCount(); });
         }
 
         private string GetLocalIpAddress()
         {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-            socket.Connect("8.8.8.8", 65530);
-            return ((IPEndPoint)socket.LocalEndPoint).Address.ToString();
+            try
+            {
+                using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
+                socket.Connect("8.8.8.8", 65530);
+                return ((IPEndPoint)socket.LocalEndPoint).Address.ToString();
+            }
+            catch
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                    if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip)) return ip.ToString();
+                return "127.0.0.1";
+            }
         }
 
         private void GenerateQr(string url)
@@ -209,10 +208,7 @@ namespace XrdRemote
             bmp.Save(ms, ImageFormat.Png);
             ms.Position = 0;
             var img = new BitmapImage();
-            img.BeginInit();
-            img.StreamSource = ms;
-            img.CacheOption = BitmapCacheOption.OnLoad;
-            img.EndInit();
+            img.BeginInit(); img.StreamSource = ms; img.CacheOption = BitmapCacheOption.OnLoad; img.EndInit();
             QrImage.Source = img;
         }
 
@@ -223,13 +219,62 @@ namespace XrdRemote
                 try
                 {
                     var ctx = await _listener.GetContextAsync();
-                    _ = Task.Run(() => HandleRequest(ctx));
+                    if (ctx.Request.IsWebSocketRequest) _ = Task.Run(() => HandleWebSocket(ctx));
+                    else _ = Task.Run(() => HandleRequest(ctx));
                 }
                 catch { }
             }
         }
 
-        // ── Security helpers ──────────────────────────────────────────────────
+        private async Task HandleWebSocket(HttpListenerContext ctx)
+        {
+            string clientIp = ctx.Request.RemoteEndPoint?.Address?.ToString() ?? "0.0.0.0";
+            if (IsRateLimited(clientIp)) { ctx.Response.StatusCode = 429; ctx.Response.Close(); return; }
+            string wsToken = ctx.Request.QueryString["token"] ?? "";
+            if (wsToken != _sessionToken) { RecordFailedAuth(clientIp); ctx.Response.StatusCode = 401; ctx.Response.Close(); return; }
+            string deviceId = ctx.Request.Headers["X-Device-ID"] ?? clientIp;
+            RecordSession(clientIp, deviceId);
+
+            var wsCtx = await ctx.AcceptWebSocketAsync(null);
+            var ws = wsCtx.WebSocket;
+            lock (_wsLock) _wsClients.Add(ws);
+            try
+            {
+                var buf = new byte[4096];
+                while (ws.State == WebSocketState.Open)
+                {
+                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None);
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                        break;
+                    }
+                }
+            }
+            catch { }
+            finally { lock (_wsLock) _wsClients.Remove(ws); try { ws.Dispose(); } catch { } Dispatcher.InvokeAsync(RefreshClientCount); }
+        }
+
+        private async Task BroadcastState()
+        {
+            List<WebSocket> clients;
+            lock (_wsLock) clients = _wsClients.Where(w => w.State == WebSocketState.Open).ToList();
+            if (!clients.Any()) return;
+            try
+            {
+                var state = await GetMediaInfo();
+                var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(state));
+                var seg = new ArraySegment<byte>(bytes);
+                var dead = new List<WebSocket>();
+                foreach (var ws in clients)
+                {
+                    try { await ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None); }
+                    catch { dead.Add(ws); }
+                }
+                if (dead.Any()) lock (_wsLock) foreach (var ws in dead) _wsClients.Remove(ws);
+            }
+            catch { }
+        }
 
         private bool IsRateLimited(string ip)
         {
@@ -237,11 +282,7 @@ namespace XrdRemote
             {
                 if (!_rateLimits.TryGetValue(ip, out var rec)) return false;
                 if (rec.BanUntil > DateTime.UtcNow) return true;
-
-                // Reset expired ban
-                if (rec.BanUntil != DateTime.MinValue)
-                    _rateLimits[ip] = (0, DateTime.MinValue);
-
+                if (rec.BanUntil != DateTime.MinValue) _rateLimits[ip] = (0, DateTime.MinValue);
                 return false;
             }
         }
@@ -252,7 +293,6 @@ namespace XrdRemote
             {
                 _rateLimits.TryGetValue(ip, out var rec);
                 int attempts = rec.Attempts + 1;
-                // 5 failures → 5 minute ban
                 DateTime ban = attempts >= 5 ? DateTime.UtcNow.AddMinutes(5) : DateTime.MinValue;
                 _rateLimits[ip] = (attempts, ban);
             }
@@ -263,41 +303,27 @@ namespace XrdRemote
             lock (_secLock)
             {
                 _activeSessions[ip] = (deviceId, DateTime.UtcNow);
-
-                // Remove sessions not seen in last 30 seconds
-                var stale = _activeSessions
-                    .Where(kv => (DateTime.UtcNow - kv.Value.LastSeen).TotalSeconds > 30)
-                    .Select(kv => kv.Key).ToList();
+                var stale = _activeSessions.Where(kv => (DateTime.UtcNow - kv.Value.LastSeen).TotalSeconds > 60).Select(kv => kv.Key).ToList();
                 foreach (var k in stale) _activeSessions.Remove(k);
-
-                // Clear old rate-limit records to prevent unbounded growth
                 if (_rateLimits.Count > 500)
                 {
-                    var expired = _rateLimits
-                        .Where(kv => kv.Value.BanUntil < DateTime.UtcNow && kv.Value.Attempts == 0)
-                        .Select(kv => kv.Key).Take(100).ToList();
+                    var expired = _rateLimits.Where(kv => kv.Value.BanUntil < DateTime.UtcNow && kv.Value.Attempts == 0).Select(kv => kv.Key).Take(100).ToList();
                     foreach (var k in expired) _rateLimits.Remove(k);
                 }
             }
-
             Dispatcher.InvokeAsync(RefreshClientCount);
         }
 
         private void RefreshClientCount()
         {
-            int count;
-            lock (_secLock) count = _activeSessions.Count;
-            ClientCountText.Text = count == 0 ? "No connections"
-                : count == 1 ? "1 device connected"
-                : $"{count} devices connected";
+            int count; lock (_secLock) count = _activeSessions.Count;
+            ClientCountText.Text = count == 0 ? "No connections" : count == 1 ? "1 device connected" : $"{count} devices connected";
         }
-
-        // ── Request handler ───────────────────────────────────────────────────
 
         private async void HandleRequest(HttpListenerContext ctx)
         {
             string rawUrl = ctx.Request.RawUrl ?? "/";
-            string path = rawUrl.Split('?')[0]; // strip query string for routing
+            string path = rawUrl.Split('?')[0]; 
             string method = ctx.Request.HttpMethod;
             string response = "{}";
             int code = 200;
@@ -310,49 +336,60 @@ namespace XrdRemote
 
             if (method == "OPTIONS") { ctx.Response.Close(); return; }
 
-            // ── Discovery endpoint — no auth required ─────────────────────────
             if (path == "/discover")
             {
-                response = JsonSerializer.Serialize(new
-                {
-                    app = "RemoteXS",
-                    version = "2.2",
-                    host = Environment.MachineName
-                });
+                response = JsonSerializer.Serialize(new { app = "RemoteXS", version = "2.4", host = Environment.MachineName });
                 goto SendResponse;
             }
 
-            // ── Static assets — no auth required ─────────────────────────────
-            bool isApiRoute = path == "/ping" || path == "/mixer" ||
-                              path == "/command" || path == "/keyboard";
+            if (path == "/manifest.json")
+            {
+                contentType = "application/manifest+json";
+                response = "{\"name\":\"RemoteXS\",\"short_name\":\"RemoteXS\",\"start_url\":\"/\",\"display\":\"standalone\",\"background_color\":\"#000000\",\"theme_color\":\"#000000\",\"orientation\":\"portrait\"}";
+                goto SendResponse;
+            }
+
+            bool isApiRoute = path == "/ping" || path == "/mixer" || path == "/command" || path == "/keyboard" || path == "/clipboard";
 
             if (isApiRoute)
             {
                 string clientIp = ctx.Request.RemoteEndPoint?.Address?.ToString() ?? "0.0.0.0";
+                if (IsRateLimited(clientIp)) { ctx.Response.StatusCode = 429; ctx.Response.Close(); return; }
 
-                if (IsRateLimited(clientIp))
+                string clientToken = ctx.Request.Headers["X-Token"] ?? ctx.Request.QueryString["token"] ?? "";
+                bool isAuth = false;
+
+                if (clientToken == _sessionToken)
                 {
-                    ctx.Response.StatusCode = 429;
-                    ctx.Response.Close();
-                    return;
+                    isAuth = true;
+                    string deviceId = ctx.Request.Headers["X-Device-ID"] ?? clientIp;
+                    RecordSession(clientIp, deviceId);
+                }
+                else
+                {
+                    lock (_secLock)
+                    {
+                        if (_activeSessions.TryGetValue(clientIp, out var session))
+                        {
+                            if ((DateTime.UtcNow - session.LastSeen).TotalHours < 2)
+                            {
+                                isAuth = true;
+                                _activeSessions[clientIp] = (session.DeviceId, DateTime.UtcNow);
+                            }
+                        }
+                    }
                 }
 
-                string clientToken = ctx.Request.Headers["X-Token"] ?? "";
-                if (clientToken != _sessionToken)
+                if (!isAuth)
                 {
                     RecordFailedAuth(clientIp);
                     ctx.Response.StatusCode = 401;
-                    ctx.Response.OutputStream.Write(
-                        Encoding.UTF8.GetBytes("{\"error\":\"unauthorized\"}"));
+                    ctx.Response.OutputStream.Write(Encoding.UTF8.GetBytes("{\"error\":\"unauthorized\"}"));
                     ctx.Response.OutputStream.Close();
                     return;
                 }
-
-                string deviceId = ctx.Request.Headers["X-Device-ID"] ?? clientIp;
-                RecordSession(clientIp, deviceId);
             }
 
-            // ── Routing ───────────────────────────────────────────────────────
             try
             {
                 if (path == "/ping")
@@ -373,37 +410,31 @@ namespace XrdRemote
                     var cmd = JsonSerializer.Deserialize<CommandData>(json, opts);
                     Application.Current.Dispatcher.Invoke(() => ExecuteCommand(cmd));
                 }
+                else if (path == "/clipboard" && method == "GET")
+                {
+                    string clipText = "";
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        try { if (System.Windows.Clipboard.ContainsText()) clipText = System.Windows.Clipboard.GetText(); } catch { }
+                    });
+                    response = JsonSerializer.Serialize(new { text = clipText });
+                }
                 else if (path == "/keyboard")
                 {
-                    contentType = "text/html";
+                    contentType = "text/html; charset=utf-8";
                     response = KeyboardModule.GetHtml();
                 }
                 else
                 {
                     string html = GetEmbeddedSite();
-                    if (!string.IsNullOrEmpty(html))
-                    {
-                        contentType = "text/html; charset=utf-8";
-                        responseBytes = Encoding.UTF8.GetBytes(html);
-                    }
-                    else
-                    {
-                        ctx.Response.StatusCode = 404;
-                        ctx.Response.Close();
-                        return;
-                    }
+                    if (!string.IsNullOrEmpty(html)) { contentType = "text/html; charset=utf-8"; responseBytes = Encoding.UTF8.GetBytes(html); }
+                    else { ctx.Response.StatusCode = 404; ctx.Response.Close(); return; }
                 }
             }
-            catch (Exception ex)
-            {
-                code = 500;
-                response = JsonSerializer.Serialize(new { error = ex.Message });
-            }
+            catch (Exception ex) { code = 500; response = JsonSerializer.Serialize(new { error = ex.Message }); }
 
             SendResponse:
-            if (responseBytes == null)
-                responseBytes = Encoding.UTF8.GetBytes(response);
-
+            if (responseBytes == null) responseBytes = Encoding.UTF8.GetBytes(response);
             ctx.Response.ContentType = contentType;
             ctx.Response.StatusCode = code;
             ctx.Response.ContentLength64 = responseBytes.Length;
@@ -426,34 +457,22 @@ namespace XrdRemote
             catch { return null; }
         }
 
-        // ── Media info ────────────────────────────────────────────────────────
-
         private async Task<object> GetMediaInfo()
         {
-            string window = "PC Connected";
-            string cover = "";
-            int vol = 0;
-            bool playing = false;
-            double position = 0, duration = 0;
-
+            string window = "PC Connected"; string cover = ""; int vol = 0; bool playing = false; double position = 0, duration = 0;
             try
             {
                 EnsureAudioDevice();
-                if (_audioDevice != null)
-                    vol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
-
+                if (_audioDevice != null) vol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);
                 if (_mediaManager != null)
                 {
                     var s = _mediaManager.GetCurrentSession();
                     if (s != null)
                     {
                         var pb = s.GetPlaybackInfo();
-                        playing = pb.Controls.IsPauseEnabled &&
-                            pb.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-
+                        playing = pb.Controls.IsPauseEnabled && pb.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                         var props = await s.TryGetMediaPropertiesAsync();
                         window = $"{props.Title} • {props.Artist}";
-
                         if (props.Thumbnail != null)
                         {
                             using var st = await props.Thumbnail.OpenReadAsync();
@@ -461,76 +480,34 @@ namespace XrdRemote
                             await st.AsStreamForRead().CopyToAsync(ms);
                             cover = Convert.ToBase64String(ms.ToArray());
                         }
-
-                        try
-                        {
-                            var tl = s.GetTimelineProperties();
-                            position = tl.Position.TotalSeconds;
-                            duration = tl.EndTime.TotalSeconds;
-                        }
-                        catch { }
+                        try { var tl = s.GetTimelineProperties(); position = tl.Position.TotalSeconds; duration = tl.EndTime.TotalSeconds; } catch { }
                     }
                 }
             }
             catch { }
-
             return new { window, cover, volume = vol, playing, position, duration };
         }
-
-        // ── Mixer ─────────────────────────────────────────────────────────────
 
         private List<MixerItem> GetMixerData()
         {
             var list = new List<MixerItem>();
             try
             {
-                EnsureAudioDevice();
-                if (_audioDevice == null) return list;
-
-                list.Add(new MixerItem
-                {
-                    pid = -1,
-                    name = "Master Volume",
-                    vol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100),
-                    icon = ""
-                });
-
+                EnsureAudioDevice(); if (_audioDevice == null) return list;
+                list.Add(new MixerItem { pid = -1, name = "Master Volume", vol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100), icon = "" });
                 var sessions = _audioDevice.AudioSessionManager.Sessions;
                 for (int i = 0; i < sessions.Count; i++)
                 {
                     var s = sessions[i];
-                    if (s.State != AudioSessionState.AudioSessionStateActive &&
-                        s.State != AudioSessionState.AudioSessionStateInactive) continue;
-
-                    string name = "";
-                    uint pid = s.GetProcessID;
-                    string icon = "";
-
-                    if (pid > 0)
-                    {
-                        try
-                        {
-                            var proc = System.Diagnostics.Process.GetProcessById((int)pid);
-                            name = proc.ProcessName;
-                            icon = GetProcessIcon((int)pid);
-                        }
-                        catch { }
-                    }
-
+                    if (s.State != AudioSessionState.AudioSessionStateActive && s.State != AudioSessionState.AudioSessionStateInactive) continue;
+                    string name = ""; uint pid = s.GetProcessID; string icon = "";
+                    if (pid > 0) { try { var proc = System.Diagnostics.Process.GetProcessById((int)pid); name = proc.ProcessName; icon = GetProcessIcon((int)pid); } catch { } }
                     if (string.IsNullOrEmpty(name)) name = s.DisplayName;
                     if (string.IsNullOrEmpty(name)) name = "System Sound";
-
-                    list.Add(new MixerItem
-                    {
-                        pid = (int)pid,
-                        name = name,
-                        vol = (int)(s.SimpleAudioVolume.Volume * 100),
-                        icon = icon
-                    });
+                    list.Add(new MixerItem { pid = (int)pid, name = name, vol = (int)(s.SimpleAudioVolume.Volume * 100), icon = icon });
                 }
             }
-            catch { }
-            return list;
+            catch { } return list;
         }
 
         private string GetProcessIcon(int pid)
@@ -554,25 +531,27 @@ namespace XrdRemote
             float v = Math.Clamp(vol, 0, 100) / 100.0f;
             try
             {
-                EnsureAudioDevice();
-                if (_audioDevice == null) return;
-
-                if (id == -1)
-                {
-                    _audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar = v;
-                }
+                EnsureAudioDevice(); if (_audioDevice == null) return;
+                if (id == -1) _audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar = v;
                 else
                 {
                     var sessions = _audioDevice.AudioSessionManager.Sessions;
-                    for (int i = 0; i < sessions.Count; i++)
-                        if (sessions[i].GetProcessID == id)
-                            sessions[i].SimpleAudioVolume.Volume = v;
+                    for (int i = 0; i < sessions.Count; i++) if (sessions[i].GetProcessID == id) sessions[i].SimpleAudioVolume.Volume = v;
                 }
             }
             catch { _audioDevice = null; }
         }
 
-        // ── Commands ──────────────────────────────────────────────────────────
+        private async void SetMediaPosition(double posSeconds)
+        {
+            if (_mediaManager == null) return;
+            try
+            {
+                var s = _mediaManager.GetCurrentSession();
+                if (s != null) await s.TryChangePlaybackPositionAsync(Convert.ToInt64(posSeconds * 10000000));
+            }
+            catch { }
+        }
 
         private void ExecuteCommand(CommandData data)
         {
@@ -587,24 +566,28 @@ namespace XrdRemote
                     case "mute":       keybd_event(VK_VOLUME_MUTE, 0, 0, 0);      break;
                     case "vol_up":     keybd_event(VK_VOLUME_UP, 0, 0, 0);        break;
                     case "vol_down":   keybd_event(VK_VOLUME_DOWN, 0, 0, 0);      break;
+                    case "set_vol":    SetAppVolume(data.id, data.vol);           break;
+                    case "set_pos":    SetMediaPosition(data.pos);                break;
                     case "key_event":  KeyboardModule.HandleCommand(data.cmd, data.id, data.vol > 0); break;
-                    case "set_vol":    SetAppVolume(data.id, data.vol);            break;
                     case "mouse_move":
-                        GetCursorPos(out Point p);
-                        SetCursorPos(p.X + (int)data.x, p.Y + (int)data.y);
-                        break;
+                        GetCursorPos(out Point p); SetCursorPos(p.X + (int)data.x, p.Y + (int)data.y); break;
                     case "click_left":  mouse_event(MOUSEEVENTF_LEFTDOWN  | MOUSEEVENTF_LEFTUP,  0, 0, 0, 0); break;
                     case "click_right": mouse_event(MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0); break;
                     case "scroll":
-                        int sv = (int)(data.dy != 0 ? data.dy : data.y);
-                        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, sv * -1, 0);
-                        break;
+                        int sv = (int)(data.dy != 0 ? data.dy : data.y); mouse_event(MOUSEEVENTF_WHEEL, 0, 0, sv * -1, 0); break;
+                    case "clipboard_set":
+                        if (!string.IsNullOrEmpty(data.text)) System.Windows.Clipboard.SetText(data.text); break;
+                    case "pres_next":  PressKey(VK_RIGHT);  break;
+                    case "pres_prev":  PressKey(VK_LEFT);   break;
+                    case "pres_start": PressKey(VK_F5);     break;
+                    case "pres_end":   PressKey(VK_ESCAPE); break;
+                    case "pres_black": PressKey(VK_B);      break;
                 }
             }
             catch { }
         }
 
-        // ── WinAPI ────────────────────────────────────────────────────────────
+        private void PressKey(byte vk) { keybd_event(vk, 0, 0, 0); keybd_event(vk, 0, 0x0002, 0); }
 
         [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, int extra);
         [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
@@ -612,6 +595,11 @@ namespace XrdRemote
         [DllImport("user32.dll")] static extern void mouse_event(uint flags, int dx, int dy, int data, int extra);
         [StructLayout(LayoutKind.Sequential)] public struct Point { public int X; public int Y; }
 
+        const byte VK_LEFT           = 0x25;
+        const byte VK_RIGHT          = 0x27;
+        const byte VK_F5             = 0x74;
+        const byte VK_ESCAPE         = 0x1B;
+        const byte VK_B              = 0x42;
         const byte VK_VOLUME_MUTE    = 0xAD;
         const byte VK_VOLUME_DOWN    = 0xAE;
         const byte VK_VOLUME_UP      = 0xAF;
@@ -629,12 +617,14 @@ namespace XrdRemote
 
     public class CommandData
     {
-        public string cmd { get; set; }
-        public double x   { get; set; }
-        public double y   { get; set; }
-        public double dy  { get; set; }
-        public int    id  { get; set; }
-        public int    vol { get; set; }
+        public string cmd  { get; set; }
+        public string text { get; set; }
+        public double x    { get; set; }
+        public double y    { get; set; }
+        public double dy   { get; set; }
+        public int    id   { get; set; }
+        public int    vol  { get; set; }
+        public double pos  { get; set; }
     }
 
     public class MixerItem

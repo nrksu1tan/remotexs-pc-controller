@@ -5,467 +5,146 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>RemoteXS</title>
+    <script src="https://cdn.jsdelivr.net/npm/ios-vibrator-pro-max/dist/index.min.js"></script>
     <style>
         :root {
             --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-            --surface: rgba(255,255,255,0.07);
-            --surface-hi: rgba(255,255,255,0.13);
-            --border: rgba(255,255,255,0.10);
-            --text: #fff;
-            --dim: rgba(255,255,255,0.45);
-            --dimmer: rgba(255,255,255,0.22);
+            --surface: rgba(255,255,255,0.08);
+            --surface-hi: rgba(255,255,255,0.15);
+            --border: rgba(255,255,255,0.12);
+            --text: #ffffff;
+            --dim: rgba(255,255,255,0.6);
+            --dimmer: rgba(255,255,255,0.3);
             --safe-t: env(safe-area-inset-top);
             --safe-b: env(safe-area-inset-bottom);
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            -webkit-user-select: none;
-            font-family: var(--font);
-            margin: 0; padding: 0;
-        }
-
-        html, body {
-            background: #000;
-            color: var(--text);
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-        }
-
-        /* iPhone home bar fix — opaque strip at very bottom */
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            height: env(safe-area-inset-bottom);
-            background: #000;
-            z-index: 200;
-            pointer-events: none;
-        }
-
-        /* ── Blurred background ──────────────────────────────── */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; font-family: var(--font); margin: 0; padding: 0; }
+        html { background: #000; height: 100vh; width: 100vw; overflow: hidden; overscroll-behavior: none; }
+        body { background: transparent; height: 100%; width: 100%; color: var(--text); }
+        
         #bg {
-            position: fixed;
-            inset: -40px;
-            background-size: cover;
-            background-position: center;
-            filter: blur(100px) brightness(0.14) saturate(1.8);
-            opacity: 0;
-            transition: opacity 2.2s ease;
-            z-index: -1;
+            position: fixed; top: -15%; left: -15%; right: -15%; bottom: -15%; width: 130%; height: 130%;
+            background-size: cover; background-position: center; 
+            filter: blur(60px) brightness(0.35) saturate(1.5);
+            opacity: 0; transition: opacity 1s ease-out; z-index: 0; transform: translateZ(0);
         }
 
-        /* ── App shell ───────────────────────────────────────── */
-        .shell {
-            display: flex;
-            flex-direction: column;
-            height: 100dvh;
-            padding-top: max(16px, var(--safe-t));
-        }
+        .shell { display: flex; flex-direction: column; height: 100%; padding-top: max(16px, var(--safe-t)); position: relative; z-index: 2; }
 
-        /* ── Nav ─────────────────────────────────────────────── */
-        .nav {
-            flex-shrink: 0;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 22px;
-            z-index: 10;
-        }
+        .nav { flex-shrink: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 10; }
+        .nav-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.8); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dimmer); transition: background .4s, box-shadow .4s; }
+        .dot.on { background: #30D158; box-shadow: 0 0 12px rgba(48,209,88,.6); }
+        .nav-btns { display: flex; gap: 8px; }
+        .nav-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; transition: background .15s, transform .1s; cursor: pointer; }
+        .nav-btn:active { background: var(--surface-hi); transform: scale(0.92); }
 
-        .nav-left {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--dimmer);
-        }
-
-        .dot {
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            background: var(--dimmer);
-            transition: background .4s, box-shadow .4s;
-        }
-
-        .dot.on {
-            background: #30D158;
-            box-shadow: 0 0 10px rgba(48,209,88,.6);
-        }
-
-        .nav-btn {
-            width: 34px; height: 34px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: var(--dim);
-            transition: background .15s;
-        }
-        .nav-btn:active { background: var(--surface-hi); }
-
-        /* ── Content ─────────────────────────────────────────── */
         .content { flex: 1; position: relative; overflow: hidden; }
+        .view { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(0.98); transition: opacity .3s cubic-bezier(0.2, 0.8, 0.2, 1), transform .3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .view.active { opacity: 1; pointer-events: all; transform: scale(1); }
 
-        .view {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column;
-            opacity: 0; pointer-events: none;
-            transform: translateY(10px);
-            transition: opacity .26s cubic-bezier(.4,0,.2,1),
-                        transform .26s cubic-bezier(.4,0,.2,1);
-            will-change: transform, opacity;
-        }
-        .view.active { opacity: 1; pointer-events: all; transform: none; }
+        /* ── MEDIA ── */
+        #tab-media { padding: 0 24px calc(100px + var(--safe-b)); }
+        .art-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding-bottom: 20px; }
+        .art { width: min(100%, 320px); aspect-ratio: 1; border-radius: 20px; background: rgba(255,255,255,.05); background-size: cover; background-position: center; box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1); transition: opacity .4s, transform .4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .art.fade { opacity: 0; transform: scale(0.92); }
+        .track-row { display: flex; align-items: center; margin-bottom: 20px; }
+        .track-text { flex: 1; overflow: hidden; text-align: center; }
+        .track-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; color: #ffffff; }
+        .track-artist { font-size: 16px; font-weight: 500; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* ════════════════════════════════════════════════════════
-           MEDIA TAB  — Apple Music style
-        ════════════════════════════════════════════════════════ */
-        #tab-media {
-            padding: 4px 24px 0;
-            padding-bottom: calc(76px + var(--safe-b));
-        }
+        .progress-wrap { margin-bottom: 24px; padding: 0 5px; }
+        .progress-times { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--dim); margin-top: 8px; }
 
-        /* Album art */
-        .art-wrap {
-            flex: 1;
-            display: flex; align-items: center; justify-content: center;
-            min-height: 0;
-            padding-bottom: 6px;
-        }
+        .controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; padding: 0 15px; }
+        .ctrl { width: 60px; height: 60px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #fff; transition: transform .15s, opacity .15s; cursor: pointer; }
+        .ctrl:active { transform: scale(.85); opacity: 0.6; }
+        .play { width: 80px; height: 80px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; transition: transform .15s, background .15s; box-shadow: 0 10px 30px rgba(0,0,0,0.3); cursor: pointer; }
+        .play:active { transform: scale(.9); background: #e0e0e0; }
 
-        .art {
-            width: min(100%, 300px);
-            aspect-ratio: 1;
-            border-radius: 18px;
-            background: rgba(255,255,255,.05);
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 32px 60px rgba(0,0,0,.7),
-                        0 0 0 .5px rgba(255,255,255,.06);
-            transition: opacity .3s, transform .3s;
-        }
-        .art.fade { opacity: 0; transform: scale(.95); }
+        /* ── SLIDERS ── */
+        .slider-container { position: relative; height: 28px; display: flex; align-items: center; flex: 1; }
+        input[type=range].vslider { width: 100%; -webkit-appearance: none !important; appearance: none !important; background: transparent !important; color: transparent !important; border: none !important; height: 100%; outline: none !important; margin: 0; position: absolute; z-index: 2; box-shadow: none !important; }
+        input[type=range].vslider:focus { outline: none !important; }
+        input[type=range].vslider::-webkit-slider-runnable-track { -webkit-appearance: none !important; background: transparent !important; border: none !important; color: transparent !important; }
+        input[type=range].vslider::-webkit-slider-thumb { -webkit-appearance: none !important; appearance: none !important; width: 32px; height: 32px; border-radius: 50%; background: transparent !important; border: none !important; box-shadow: none !important; color: transparent !important; }
+        
+        .slider-track { position: absolute; width: 100%; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.15); pointer-events: none; overflow: hidden; transition: height 0.2s; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        .slider-fill { height: 100%; width: var(--val, 0%); background: #fff; border-radius: 4px; }
+        
+        input[type=range].vslider:active + .slider-track { height: 14px; border-radius: 8px; }
+        input[type=range].vslider:active + .slider-track .slider-fill { border-radius: 8px; }
 
-        /* Track info row */
-        .track-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 14px;
-        }
-        .track-text { flex: 1; overflow: hidden; }
-        .track-title {
-            font-size: 21px; font-weight: 700;
-            letter-spacing: -.03em; line-height: 1.15;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            margin-bottom: 3px;
-        }
-        .track-artist {
-            font-size: 15px; font-weight: 400;
-            color: var(--dim);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .heart-btn {
-            width: 36px; height: 36px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: var(--dimmer); flex-shrink: 0;
-            transition: color .15s, transform .15s;
-            margin-left: 12px;
-        }
-        .heart-btn:active { color: #FF3B30; transform: scale(.88); }
+        .vol-row { display: flex; align-items: center; gap: 14px; padding: 0 5px; }
+        .vic { color: var(--dim); flex-shrink: 0; width: 18px; height: 18px; }
 
-        /* Progress bar */
-        .progress-wrap { margin-bottom: 14px; }
+        /* ── MOUSE ── */
+        #tab-mouse { padding: 10px 24px calc(100px + var(--safe-b)); touch-action: none; }
+        .pad { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 28px; position: relative; margin-bottom: 16px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .pad-hint { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 600; color: var(--dimmer); letter-spacing: .02em; pointer-events: none; }
+        .click-row { display: flex; gap: 12px; height: 64px; flex-shrink: 0; }
+        .clk { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #fff; transition: background .1s, transform .1s; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); cursor: pointer; }
+        .clk:active { background: rgba(255,255,255,0.25); transform: scale(.95); }
 
-        .progress-bar-bg {
-            width: 100%; height: 4px;
-            background: rgba(255,255,255,.15);
-            border-radius: 2px;
-            position: relative;
-            cursor: pointer;
-            margin-bottom: 6px;
-        }
-        .progress-fill {
-            height: 100%; border-radius: 2px;
-            background: rgba(255,255,255,.85);
-            width: 0%;
-            transition: width .4s linear;
-            pointer-events: none;
-        }
-        .progress-times {
-            display: flex; justify-content: space-between;
-            font-size: 11px; font-weight: 500;
-            color: var(--dimmer);
-            letter-spacing: .01em;
-        }
+        /* ── MIXER ── */
+        #tab-mixer { overflow-y: auto; touch-action: pan-y; padding: 0 24px calc(100px + var(--safe-b)); }
+        .sec-title { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin: 10px 0 20px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .mix-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .mix-row { display: flex; align-items: center; gap: 16px; padding: 16px; position: relative; }
+        .mix-row + .mix-row::before { content: ''; position: absolute; top: 0; left: 72px; right: 0; height: 1px; background: var(--border); }
+        .app-ic { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; background: rgba(255,255,255,.05); padding: 4px; flex-shrink: 0; }
+        .app-nm { flex: 1; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
 
-        /* Controls row */
-        .controls {
-            display: flex;
-            align-items: center; justify-content: space-between;
-            margin-bottom: 20px;
-        }
+        /* ── PRESENTATION ── */
+        #tab-pres { padding: 10px 24px calc(100px + var(--safe-b)); touch-action: none; }
+        .pres-zone { flex: 1; background: var(--surface); border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 28px; position: relative; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; min-height: 0; }
+        .pres-hint { font-size: 13px; font-weight: 600; color: var(--dimmer); letter-spacing: .02em; pointer-events: none; text-align: center; }
+        .pres-arrow-hint { position: absolute; top: 50%; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; transform: translateY(-50%); pointer-events: none; color: rgba(255,255,255,.10); font-size: 48px; font-weight: bold; }
+        .pres-btns { display: flex; gap: 12px; flex-shrink: 0; }
+        .pres-btn { flex: 1; height: 64px; background: var(--surface); border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #fff; transition: transform .1s, background .1s; font-weight: 700; font-size: 15px; cursor: pointer; }
+        .pres-btn:active { background: rgba(255,255,255,0.25); transform: scale(.95); }
+        .pres-btn.accent { background: rgba(255,255,255,.15); }
 
-        .ctrl {
-            width: 58px; height: 58px;
-            background: var(--surface);
-            border: .5px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
-            color: rgba(255,255,255,.7);
-            transition: background .15s, transform .15s;
-        }
-        .ctrl:active { transform: scale(.87); background: var(--surface-hi); color: #fff; }
+        /* ── DOCK ── */
+        .dock-outer { position: fixed; bottom: 0; left: 0; right: 0; padding: 0 0 max(12px, var(--safe-b)); display: flex; justify-content: center; pointer-events: none; z-index: 100; }
+        .dock { pointer-events: auto; background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(35px) saturate(250%); -webkit-backdrop-filter: blur(35px) saturate(250%); border: 1px solid rgba(255, 255, 255, 0.12); padding: 4px; border-radius: 28px; display: flex; gap: 2px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .tab-btn { width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.4); transition: all .25s cubic-bezier(.4, 0, .2, 1); cursor: pointer; }
+        .tab-btn:active { transform: scale(.85); }
+        .tab-btn.on { color: #fff; background: rgba(255,255,255,.2); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
-        .play {
-            width: 74px; height: 74px;
-            background: #fff; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 6px 30px rgba(255,255,255,.14);
-            transition: transform .15s, background .15s;
-        }
-        .play:active { transform: scale(.89); background: rgba(255,255,255,.82); }
-
-        /* Volume */
-        .vol-row {
-            display: flex; align-items: center; gap: 10px;
-            background: var(--surface);
-            border: .5px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 100px; padding: 8px; height: 56px;
-        }
-
-        .mute {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(255,255,255,.08);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--dim); flex-shrink: 0;
-            transition: background .15s, transform .15s;
-        }
-        .mute:active { background: rgba(255,255,255,.18); transform: scale(.9); }
-
-        .vol-inner { flex: 1; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
-        .vic { color: var(--dimmer); flex-shrink: 0; }
-
-        input[type=range].vslider {
-            flex: 1; -webkit-appearance: none;
-            background: transparent; touch-action: none;
-        }
-        input[type=range].vslider::-webkit-slider-runnable-track {
-            height: 4px; background: rgba(255,255,255,.18); border-radius: 2px;
-        }
-        input[type=range].vslider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px; height: 22px;
-            background: #fff; border-radius: 50%;
-            margin-top: -9px; box-shadow: 0 2px 8px rgba(0,0,0,.4);
-        }
-
-        /* ════════════════════════════════════════════════════════
-           MOUSE TAB
-        ════════════════════════════════════════════════════════ */
-        #tab-mouse { padding: 10px 20px calc(80px + var(--safe-b)); touch-action: none; }
-
-        .pad {
-            flex: 1;
-            background: var(--surface); border: .5px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 22px; position: relative; margin-bottom: 12px;
-        }
-        .pad::after {
-            content: ''; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%,-50%);
-            width: 4px; height: 4px;
-            background: rgba(255,255,255,.14); border-radius: 50%;
-        }
-        .pad-hint {
-            position: absolute; bottom: 16px; left: 0; right: 0;
-            text-align: center; font-size: 11px; font-weight: 500;
-            color: var(--dimmer); letter-spacing: .02em; pointer-events: none;
-        }
-
-        .click-row { display: flex; gap: 10px; height: 56px; flex-shrink: 0; }
-
-        .clk {
-            flex: 1; background: var(--surface); border: .5px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 16px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px; font-weight: 500; color: var(--dim);
-            transition: background .1s, color .1s, transform .1s;
-        }
-        .clk:active { background: #fff; color: #000; transform: scale(.96); }
-
-        /* ════════════════════════════════════════════════════════
-           MIXER TAB
-        ════════════════════════════════════════════════════════ */
-        #tab-mixer {
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-            touch-action: pan-y;
-            padding: 0 20px calc(100px + var(--safe-b));
-        }
-
-        .sec-title {
-            font-size: 24px; font-weight: 700; letter-spacing: -.03em;
-            margin: 10px 0 14px 2px;
-        }
-
-        .mix-card {
-            background: var(--surface); border: .5px solid var(--border);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-radius: 18px; overflow: hidden;
-        }
-
-        .mix-row {
-            display: flex; align-items: center; gap: 14px;
-            padding: 12px 16px; position: relative;
-        }
-        .mix-row + .mix-row::before {
-            content: ''; position: absolute; top: 0; left: 70px; right: 0;
-            height: .5px; background: var(--border);
-        }
-
-        .app-ic {
-            width: 40px; height: 40px; border-radius: 10px;
-            object-fit: contain; background: rgba(255,255,255,.06);
-            padding: 4px; flex-shrink: 0;
-        }
-        .app-ph {
-            width: 40px; height: 40px; border-radius: 10px;
-            background: rgba(255,255,255,.07);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--dimmer); flex-shrink: 0;
-        }
-        .app-nm {
-            flex: 1; font-size: 14px; font-weight: 500;
-            letter-spacing: -.01em;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-
-        input[type=range].mslider {
-            width: 90px; -webkit-appearance: none;
-            background: transparent; touch-action: none;
-        }
-        input[type=range].mslider::-webkit-slider-runnable-track {
-            height: 4px; background: rgba(255,255,255,.14); border-radius: 2px;
-        }
-        input[type=range].mslider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px; height: 18px; background: #fff;
-            margin-top: -7px; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.4);
-        }
-
-        /* ════════════════════════════════════════════════════════
-           DOCK
-        ════════════════════════════════════════════════════════ */
-        .dock-outer {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            padding: 0 0 max(14px, var(--safe-b));
-            background: linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 100%);
-            display: flex; justify-content: center;
-            pointer-events: none; z-index: 100;
-        }
-
-        .dock {
-            pointer-events: auto;
-            background: rgba(26,26,28,.78);
-            backdrop-filter: blur(40px) saturate(180%);
-            -webkit-backdrop-filter: blur(40px) saturate(180%);
-            border: .5px solid rgba(255,255,255,.12);
-            padding: 7px 10px; border-radius: 100px;
-            display: flex; gap: 4px;
-            box-shadow: 0 16px 48px rgba(0,0,0,.5);
-        }
-
-        .tab-btn {
-            width: 50px; height: 50px; border-radius: 100px;
-            display: flex; align-items: center; justify-content: center;
-            color: rgba(255,255,255,.36);
-            transition: color .25s cubic-bezier(.34,1.5,.64,1),
-                        background .25s, transform .25s cubic-bezier(.34,1.5,.64,1);
-        }
-        .tab-btn:active { transform: scale(.84); }
-        .tab-btn.on { color: #fff; background: rgba(255,255,255,.12); }
-
-        /* ════════════════════════════════════════════════════════
-           SETUP / PAIRING SCREEN
-        ════════════════════════════════════════════════════════ */
-        #setup {
-            position: fixed; inset: 0; background: #000; z-index: 999;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: max(40px, var(--safe-t)) 30px max(40px, var(--safe-b));
-        }
+        /* ── SETUP (PIN) ── */
+        #setup { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(40px, var(--safe-t)) 30px max(40px, var(--safe-b)); }
         #setup.hidden { display: none; }
+        .setup-icon { width: 72px; height: 72px; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; color: var(--dim); }
+        .setup-h { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+        .setup-sub { font-size: 14px; color: var(--dim); text-align: center; line-height: 1.5; margin-bottom: 32px; }
+        .ip-inp { background: var(--surface); border: 1px solid var(--border); color: #fff; padding: 16px 20px; border-radius: 16px; font-size: 16px; text-align: center; width: 260px; outline: none; margin-bottom: 12px; transition: border-color .2s; }
+        .ip-inp:focus { border-color: rgba(255,255,255,.3); }
+        .token-inp { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 16px 20px; border-radius: 16px; font-size: 32px; font-weight: 700; text-align: center; width: 260px; outline: none; font-family: "SF Mono", monospace; letter-spacing: 0.3em; text-indent: 0.3em; margin-bottom: 12px; transition: border-color .2s, background .2s; }
+        .token-inp:focus { border-color: #30D158; background: rgba(48,209,88,0.05); }
+        .setup-err { font-size: 13px; color: #FF453A; min-height: 20px; margin-bottom: 16px; text-align: center; font-weight: 500; }
+        .btn-row { display: flex; gap: 12px; margin-bottom: 16px; width: 260px; }
+        .connect-btn { background: #fff; color: #000; border: none; padding: 16px 0; border-radius: 100px; font-weight: 700; font-size: 16px; flex: 1; cursor: pointer; transition: transform .15s; }
+        .connect-btn:active { transform: scale(.95); }
+        .discover-btn { background: var(--surface); color: #fff; border: 1px solid var(--border); padding: 12px 0; border-radius: 100px; font-size: 14px; font-weight: 600; cursor: pointer; flex: 1; transition: background .15s; }
+        .discover-btn:active { background: var(--surface-hi); }
+        #discover-status { font-size: 13px; color: var(--dim); margin-top: 10px; min-height: 18px; text-align: center; font-weight: 500; }
+        .setup-footer { position: absolute; bottom: max(24px, var(--safe-b)); font-size: 12px; color: var(--dimmer); font-weight: 600; letter-spacing: .05em; }
 
-        .setup-icon {
-            width: 64px; height: 64px;
-            background: rgba(255,255,255,.07); border: .5px solid var(--border);
-            border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 18px; color: var(--dim);
-        }
-        .setup-h { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; }
-        .setup-sub {
-            font-size: 13px; color: var(--dim);
-            text-align: center; line-height: 1.55; margin-bottom: 26px;
-        }
+        /* ── CLIPBOARD SHEET ── */
+        #clip-overlay { position: fixed; inset: 0; z-index: 399; display: none; }
+        #clip-overlay.open { display: block; }
+        #clip-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(22,22,24,.95); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border-top: 1px solid var(--border); border-radius: 28px 28px 0 0; padding: 20px 24px max(32px, var(--safe-b)); z-index: 400; transform: translateY(100%); transition: transform .35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        #clip-sheet.open { transform: translateY(0); }
+        .clip-title { font-size: 14px; font-weight: 700; color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 20px; text-align: center; }
+        .clip-row { display: flex; gap: 12px; }
+        .clip-btn { flex: 1; height: 60px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #fff; transition: background .12s, transform .1s; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .clip-btn:active { background: rgba(255,255,255,0.2); transform: scale(.95); }
 
-        .ip-inp {
-            background: rgba(255,255,255,.07); border: .5px solid var(--border);
-            color: #fff; padding: 14px 18px; border-radius: 14px;
-            font-size: 16px; text-align: center; width: 240px; outline: none;
-            font-family: "SF Mono","Menlo","Consolas",monospace;
-            letter-spacing: .02em; margin-bottom: 10px;
-            transition: border-color .15s, background .15s;
-        }
-        .ip-inp:focus { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.10); }
-
-        .setup-err {
-            font-size: 12px; color: #FF3B30;
-            min-height: 18px; margin-bottom: 10px; text-align: center;
-        }
-
-        .connect-btn {
-            background: #fff; color: #000; border: none;
-            padding: 14px 44px; border-radius: 100px;
-            font-weight: 600; font-size: 15px;
-            font-family: var(--font); cursor: pointer;
-            transition: opacity .15s, transform .15s;
-            margin-bottom: 12px;
-        }
-        .connect-btn:active { opacity: .8; transform: scale(.97); }
-
-        .discover-btn {
-            background: transparent; color: var(--dim);
-            border: .5px solid var(--border); padding: 10px 28px;
-            border-radius: 100px; font-size: 13px; font-weight: 500;
-            font-family: var(--font); cursor: pointer;
-            transition: background .15s, color .15s;
-        }
-        .discover-btn:active { background: var(--surface-hi); color: #fff; }
-
-        #discover-status {
-            font-size: 12px; color: var(--dimmer); margin-top: 14px;
-            min-height: 16px; text-align: center;
-        }
-
-        .setup-footer {
-            position: absolute;
-            bottom: max(22px, var(--safe-b));
-            font-size: 11px; color: var(--dimmer);
-            font-weight: 500; letter-spacing: .04em;
-        }
-
-        .empty { text-align: center; padding: 48px 0; color: var(--dimmer); font-size: 14px; }
+        #toast { position: fixed; top: max(40px, var(--safe-t)); left: 50%; transform: translateX(-50%); background: rgba(30,30,30,.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 600; z-index: 500; opacity: 0; pointer-events: none; transition: opacity .3s; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -477,509 +156,382 @@
                 <div id="dot" class="dot"></div>
                 <span id="status">RemoteXS</span>
             </div>
-            <div class="nav-btn" onclick="document.getElementById('setup').classList.remove('hidden')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
+            <div class="nav-btns">
+                <div class="nav-btn" onclick="openClipSheet()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></svg>
+                </div>
+                <div class="nav-btn" onclick="document.getElementById('setup').classList.remove('hidden')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
             </div>
         </div>
 
         <div class="content">
-
-            <!-- ── MEDIA ─────────────────────────────────────────────── -->
             <div id="tab-media" class="view active">
-                <div class="art-wrap">
-                    <div id="art" class="art"></div>
-                </div>
-
+                <div class="art-wrap"><div id="art" class="art"></div></div>
                 <div class="track-row">
                     <div class="track-text">
                         <div id="track-title" class="track-title">Not Playing</div>
                         <div id="track-artist" class="track-artist">System Idle</div>
                     </div>
-                    <div class="heart-btn" ontouchend="this.classList.toggle('liked')">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                        </svg>
-                    </div>
                 </div>
 
-                <!-- Progress bar -->
                 <div class="progress-wrap">
-                    <div class="progress-bar-bg" id="progress-bg">
-                        <div class="progress-fill" id="progress-fill"></div>
+                    <div class="slider-container" style="height: 16px;">
+                        <input type="range" class="vslider" id="track-slider" min="0" max="100" value="0">
+                        <div class="slider-track" style="height: 6px;"><div class="slider-fill" id="track-slider-fill" style="--val: 0%"></div></div>
                     </div>
-                    <div class="progress-times">
-                        <span id="t-pos">0:00</span>
-                        <span id="t-dur">0:00</span>
-                    </div>
+                    <div class="progress-times"><span id="t-pos">0:00</span><span id="t-dur">0:00</span></div>
                 </div>
 
                 <div class="controls">
-                    <div class="ctrl" ontouchend="send('prev')">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/>
-                        </svg>
-                    </div>
-                    <div class="play" ontouchend="send('play_pause')">
-                        <svg id="play-icon" width="30" height="30" viewBox="0 0 24 24" fill="black" stroke="none">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                    </div>
-                    <div class="ctrl" ontouchend="send('next')">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/>
-                        </svg>
-                    </div>
+                    <div class="ctrl" ontouchend="playHaptic('medium'); send('prev')"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><rect x="5" y="4" width="3" height="16" rx="1"/></svg></div>
+                    <div class="play" ontouchend="playHaptic('medium'); send('play_pause')"><svg id="play-icon" width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                    <div class="ctrl" ontouchend="playHaptic('medium'); send('next')"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><rect x="16" y="4" width="3" height="16" rx="1"/></svg></div>
                 </div>
 
                 <div class="vol-row">
-                    <div class="mute" ontouchend="send('mute')">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                            <line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/>
-                        </svg>
+                    <svg class="vic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+                    <div class="slider-container">
+                        <input type="range" class="vslider" id="main-vol" min="0" max="100">
+                        <div class="slider-track"><div class="slider-fill" id="main-vol-fill" style="--val: 0%"></div></div>
                     </div>
-                    <div class="vol-inner">
-                        <svg class="vic" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                        </svg>
-                        <input type="range" class="vslider" min="0" max="100"
-                            oninput="send('set_vol',{id:-1,vol:parseInt(this.value)})">
-                        <svg class="vic" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                        </svg>
-                    </div>
+                    <svg class="vic" style="width:22px; height:22px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                 </div>
             </div>
 
-            <!-- ── MOUSE ──────────────────────────────────────────────── -->
             <div id="tab-mouse" class="view">
-                <div id="trackpad" class="pad">
-                    <div class="pad-hint">Tap · Hold = right-click · 2 fingers = scroll</div>
-                </div>
+                <div id="trackpad" class="pad"><div class="pad-hint">Tap · Hold = right-click · 2 fingers = scroll</div></div>
                 <div class="click-row">
-                    <div class="clk" ontouchend="send('click_left')">Left</div>
-                    <div class="clk" ontouchend="send('click_right')">Right</div>
+                    <div class="clk" ontouchend="playHaptic('heavy'); send('click_left')">Left Click</div>
+                    <div class="clk" ontouchend="playHaptic('heavy'); send('click_right')">Right Click</div>
                 </div>
             </div>
 
-            <!-- ── MIXER ──────────────────────────────────────────────── -->
             <div id="tab-mixer" class="view">
                 <div class="sec-title">Mixer</div>
-                <div id="mixer-list"><div class="empty">Connecting...</div></div>
+                <div id="mixer-list"><div style="text-align: center; padding: 40px; color: var(--dimmer)">Connecting...</div></div>
             </div>
 
+            <div id="tab-pres" class="view">
+                <div id="pres-swipe" class="pres-zone">
+                    <div class="pres-arrow-hint"><span>‹</span><span>›</span></div>
+                    <div class="pres-hint">Swipe for slides<br><span style="opacity:.5">← Prev · Next →</span></div>
+                </div>
+                <div class="pres-btns">
+                    <div class="pres-btn" ontouchend="playHaptic('medium'); send('pres_prev')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/></svg></div>
+                    <div class="pres-btn accent" ontouchend="playHaptic('medium'); send('pres_start')"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                    <div class="pres-btn" ontouchend="playHaptic('medium'); send('pres_black')">B</div>
+                    <div class="pres-btn" ontouchend="playHaptic('medium'); send('pres_end')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+                    <div class="pres-btn" ontouchend="playHaptic('medium'); send('pres_next')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- ── DOCK ───────────────────────────────────────────────────────── -->
     <div class="dock-outer">
         <div class="dock">
-            <div class="tab-btn on" onclick="go('media',this)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18V5l12-2v13"/>
-                    <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                </svg>
-            </div>
-            <div class="tab-btn" onclick="go('mouse',this)">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/>
-                </svg>
-            </div>
-            <div class="tab-btn" onclick="go('mixer',this);loadMixer()">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/>
-                    <line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/>
-                    <line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/>
-                    <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/>
-                    <circle cx="14" cy="20" r="2"/>
-                </svg>
-            </div>
-            <div class="tab-btn" onclick="location.href='/keyboard'">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="20" height="16" x="2" y="4" rx="2"/>
-                    <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M10 16h4"/>
-                </svg>
-            </div>
+            <div class="tab-btn on" onclick="go('media',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+            <div class="tab-btn" onclick="go('mouse',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/></svg></div>
+            <div class="tab-btn" onclick="go('mixer',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/></svg></div>
+            <div class="tab-btn" onclick="playHaptic('light'); location.href='/keyboard'"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M10 16h4"/></svg></div>
+            <div class="tab-btn" onclick="go('pres',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="3" rx="2"/><path d="M8 21h8M12 17v4"/><polygon points="10 8 16 11 10 14 10 8" fill="currentColor" stroke="none" opacity=".6"/></svg></div>
         </div>
     </div>
 
-    <!-- ── SETUP / PAIRING ────────────────────────────────────────────── -->
     <div id="setup" class="hidden">
-        <div class="setup-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="20" height="14" x="2" y="3" rx="2"/>
-                <line x1="8" x2="16" y1="21" y2="21"/>
-                <line x1="12" x2="12" y1="17" y2="21"/>
-            </svg>
-        </div>
+        <div class="setup-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></div>
         <div class="setup-h">Connect to PC</div>
-        <div class="setup-sub">Scan the QR code on your PC<br>or enter the address manually</div>
+        <div class="setup-sub">Enter IP address and 4-digit PIN<br>from your RemoteXS desktop app</div>
+        
         <input id="ip-inp" class="ip-inp" placeholder="192.168.x.x:8080" inputmode="url">
+        <input id="token-inp" class="token-inp" placeholder="----" type="number" inputmode="numeric" maxlength="4" autocomplete="off">
         <div id="setup-err" class="setup-err"></div>
-        <button class="connect-btn" onclick="saveIp()">Connect</button>
-        <button class="discover-btn" onclick="discoverServer()">Scan Network</button>
+        
+        <div class="btn-row"><button class="connect-btn" onclick="playHaptic('medium'); saveIp()">Connect</button></div>
+        <div class="btn-row"><button class="discover-btn" onclick="playHaptic('light'); discoverServer()">Scan Network</button></div>
         <div id="discover-status"></div>
-        <div class="setup-footer">REMOTEXS v2.2</div>
+        <div class="setup-footer">REMOTEXS ULTRA</div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="clip-overlay" onclick="closeClipSheet()"></div>
+    <div id="clip-sheet">
+        <div class="clip-title">Clipboard</div>
+        <div class="clip-row">
+            <div class="clip-btn" ontouchend="playHaptic('medium'); copyFromPC()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                <span>Copy from PC</span>
+            </div>
+            <div class="clip-btn" ontouchend="playHaptic('medium'); pasteToPC()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                <span>Paste to PC</span>
+            </div>
+        </div>
     </div>
 
     <script>
     'use strict';
 
-    // ── Auth ──────────────────────────────────────────────────────────────────
-    // Extract token from URL when opened via QR scan
+
+    let hapticUnlocked = false;
+    document.body.addEventListener('touchstart', () => {
+        if (!hapticUnlocked && window.vibrator) { try { window.vibrator.light(); hapticUnlocked = true; } catch(e){} }
+    }, { once: true, passive: true });
+
+    function playHaptic(type) {
+        try {
+            if (window.vibrator) { if (type === 'light') window.vibrator.light(); else if (type === 'medium') window.vibrator.medium(); else if (type === 'heavy') window.vibrator.heavy(); } 
+            else if (navigator.vibrate) { if (type === 'light') navigator.vibrate(10); else if (type === 'medium') navigator.vibrate(15); else if (type === 'heavy') navigator.vibrate(25); }
+        } catch(e) {}
+    }
+
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     if (urlToken) localStorage.setItem('xrd_token', urlToken);
 
     let token = localStorage.getItem('xrd_token') || '';
-
-    // Persistent device identifier
     let deviceId = localStorage.getItem('xrd_device_id');
-    if (!deviceId) {
-        deviceId = crypto.getRandomValues(new Uint8Array(8))
-            .reduce((s, b) => s + b.toString(16).padStart(2,'0'), '');
-        localStorage.setItem('xrd_device_id', deviceId);
-    }
+    if (!deviceId) { deviceId = crypto.getRandomValues(new Uint8Array(8)).reduce((s, b) => s + b.toString(16).padStart(2,'0'), ''); localStorage.setItem('xrd_device_id', deviceId); }
 
-    // ── Connection ────────────────────────────────────────────────────────────
     let ip = localStorage.getItem('xrd_ip');
+    if (!ip) { const h = window.location.hostname, p = window.location.port; if (h && h !== 'localhost' && h !== '127.0.0.1') { ip = p ? `${h}:${p}` : h; localStorage.setItem('xrd_ip', ip); } }
+    if (!ip) document.getElementById('setup').classList.remove('hidden'); else { document.getElementById('ip-inp').value = ip; document.getElementById('token-inp').value = token; }
+    document.getElementById('token-inp').addEventListener('input', function() { if (this.value.length > 4) this.value = this.value.slice(0, 4); });
 
-    // Auto-detect IP from URL (QR scan opens http://192.168.x.x:port/?token=...)
-    if (!ip) {
-        const h = window.location.hostname;
-        const p = window.location.port;
-        if (h && h !== 'localhost' && h !== '127.0.0.1') {
-            ip = p ? `${h}:${p}` : h;
-            localStorage.setItem('xrd_ip', ip);
-        }
-    }
-
-    if (!ip) {
-        document.getElementById('setup').classList.remove('hidden');
-    } else {
-        document.getElementById('ip-inp').value = ip;
-    }
-
-    // ── Setup actions ─────────────────────────────────────────────────────────
     function saveIp() {
-        const val = document.getElementById('ip-inp').value.trim();
-        if (!val) return;
-        ip = val;
-        localStorage.setItem('xrd_ip', ip);
-        document.getElementById('setup').classList.add('hidden');
-        document.getElementById('setup-err').textContent = '';
-        ping();
+        const val = document.getElementById('ip-inp').value.trim(); if (!val) return;
+        ip = val; localStorage.setItem('xrd_ip', ip);
+        const tok = document.getElementById('token-inp').value.trim();
+        if (tok) { token = tok; localStorage.setItem('xrd_token', tok); }
+        document.getElementById('setup').classList.add('hidden'); document.getElementById('setup-err').textContent = '';
+        connectWs();
     }
 
     function showAuthError(msg) {
-        token = '';
-        localStorage.removeItem('xrd_token');
-        document.getElementById('setup-err').textContent = msg;
-        document.getElementById('setup').classList.remove('hidden');
+        token = ''; localStorage.removeItem('xrd_token'); document.getElementById('setup-err').textContent = msg; document.getElementById('token-inp').value = ''; document.getElementById('setup').classList.remove('hidden');
     }
 
-    // ── Network discovery ─────────────────────────────────────────────────────
     async function discoverServer() {
-        const btn = document.querySelector('.discover-btn');
-        const status = document.getElementById('discover-status');
-        btn.disabled = true;
-        status.textContent = 'Detecting network...';
-
-        // Get local subnet via WebRTC
+        const btn = document.querySelector('.discover-btn'), status = document.getElementById('discover-status');
+        btn.disabled = true; status.textContent = 'Detecting network...';
         let subnet = null;
         try {
-            const pc = new RTCPeerConnection({ iceServers: [] });
-            pc.createDataChannel('');
-            await pc.createOffer().then(o => pc.setLocalDescription(o));
-            await new Promise(res => {
-                pc.onicecandidate = e => {
-                    if (!e.candidate) return;
-                    const m = /(\d+\.\d+\.\d+)\.\d+/.exec(e.candidate.candidate);
-                    if (m) { subnet = m[1]; res(); }
-                };
-                setTimeout(res, 2000);
-            });
-            pc.close();
+            const pc = new RTCPeerConnection({ iceServers: [] }); pc.createDataChannel(''); await pc.createOffer().then(o => pc.setLocalDescription(o));
+            await new Promise(res => { pc.onicecandidate = e => { if (!e.candidate) return; const m = /(\d+\.\d+\.\d+)\.\d+/.exec(e.candidate.candidate); if (m && !e.candidate.candidate.includes('.local')) { subnet = m[1]; res(); } }; setTimeout(res, 1500); }); pc.close();
         } catch {}
-
-        if (!subnet) {
-            status.textContent = 'Could not detect local network.';
-            btn.disabled = false;
-            return;
-        }
-
         const scanPort = (ip && ip.includes(':')) ? ip.split(':')[1] : '8080';
-        status.textContent = `Scanning ${subnet}.0/24 on port ${scanPort}...`;
-
-        // Parallel scan — look for RemoteXS /discover endpoint
-        const ips = Array.from({ length: 254 }, (_, i) => `${subnet}.${i + 1}`);
-        const found = [];
-
-        await Promise.all(ips.map(async host => {
-            try {
-                const r = await fetch(`http://${host}:${scanPort}/discover`, {
-                    signal: AbortSignal.timeout(1200)
-                });
-                if (r.ok) {
-                    const j = await r.json();
-                    if (j.app === 'RemoteXS') found.push({ host: `${host}:${scanPort}`, name: j.host });
-                }
-            } catch {}
-        }));
-
+        const subnetsToScan = subnet ? [subnet] : ['192.168.1', '192.168.0', '192.168.31', '172.20.10'];
+        status.textContent = subnet ? `Scanning ${subnet}.x...` : `Scanning subnets...`;
+        const found = [], ips = [];
+        for (const sub of subnetsToScan) for (let i = 1; i < 255; i++) ips.push(`${sub}.${i}`);
+        for (let i = 0; i < ips.length; i += 40) {
+            await Promise.all(ips.slice(i, i + 40).map(async host => { try { const r = await fetch(`http://${host}:${scanPort}/discover`, { signal: AbortSignal.timeout(1200) }); if (r.ok) { const j = await r.json(); if (j.app === 'RemoteXS') found.push({ host: `${host}:${scanPort}`, name: j.host }); } } catch {} }));
+            if (found.length > 0) break;
+        }
         btn.disabled = false;
-
-        if (!found.length) {
-            status.textContent = 'No RemoteXS servers found.';
-            return;
-        }
-
-        if (found.length === 1) {
-            ip = found[0].host;
-            localStorage.setItem('xrd_ip', ip);
-            document.getElementById('ip-inp').value = ip;
-            status.textContent = `Found: ${found[0].name} — scan QR for token`;
-        } else {
-            status.textContent = found.map(f => `${f.name} (${f.host})`).join(' · ');
-        }
+        if (!found.length) { status.textContent = 'Not found. Check PC Firewall!'; return; }
+        if (found.length === 1) { ip = found[0].host; localStorage.setItem('xrd_ip', ip); document.getElementById('ip-inp').value = ip; status.textContent = `Found: ${found[0].name} — enter PIN`; } 
+        else { status.textContent = found.map(f => `${f.name} (${f.host})`).join(' · '); }
     }
 
-    // ── API fetch wrapper with auth ───────────────────────────────────────────
     async function apiFetch(path, options = {}) {
-        const res = await fetch(`http://${ip}${path}`, {
-            ...options,
-            headers: {
-                'X-Token': token,
-                'X-Device-ID': deviceId,
-                ...(options.headers || {})
-            }
-        });
-
-        if (res.status === 401) {
-            showAuthError('Token expired or invalid. Rescan QR code.');
-            throw new Error('unauthorized');
-        }
-        if (res.status === 429) {
-            throw new Error('rate-limited');
-        }
+        const res = await fetch(`http://${ip}${path}`, { ...options, headers: { 'X-Token': token, 'X-Device-ID': deviceId, ...(options.headers || {}) } });
+        if (res.status === 401) { showAuthError('Invalid PIN.'); throw new Error('unauthorized'); }
+        if (res.status === 429) { showAuthError('Too many attempts. Wait 5 mins.'); throw new Error('rate-limited'); }
         return res;
     }
+    async function send(cmd, data = {}) { if (!ip) return; try { await apiFetch('/command', { method: 'POST', body: JSON.stringify({ cmd, ...data }) }); } catch {} }
 
-    async function send(cmd, data = {}) {
-        if (!ip) return;
-        try {
-            await apiFetch('/command', {
-                method: 'POST',
-                body: JSON.stringify({ cmd, ...data })
-            });
-        } catch {}
-    }
-
-    // ── Navigation ────────────────────────────────────────────────────────────
+    let mixSyncTimer = null;
     function go(name, el) {
+        playHaptic('light');
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById('tab-' + name).classList.add('active');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
         el.classList.add('on');
-        if (navigator.vibrate) navigator.vibrate(4);
+
+        if (name === 'mixer') {
+            loadMixer();
+            if (!mixSyncTimer) mixSyncTimer = setInterval(syncMixer, 1500);
+        } else {
+            if (mixSyncTimer) { clearInterval(mixSyncTimer); mixSyncTimer = null; }
+        }
     }
 
-    // ── MacBook trackpad ──────────────────────────────────────────────────────
-    const pad = document.getElementById('trackpad');
-    let lx = 0, ly = 0, lastCount = 0;
-    let sx = 0, sy = 0, st = 0, moved = false, longT = null;
+    function updateVolUI(el) { document.getElementById(el.id + '-fill').style.setProperty('--val', el.value + '%'); }
 
+    const trkSlider = document.getElementById('track-slider');
+    let trackDragging = false;
+
+    trkSlider.addEventListener('input', e => {
+        trackDragging = true;
+        updateVolUI(trkSlider);
+        if (trackDur > 0) document.getElementById('t-pos').textContent = fmt((trkSlider.value / 100) * trackDur);
+    });
+    trkSlider.addEventListener('change', e => {
+        if (trackDur > 0) {
+            let pos = (parseFloat(trkSlider.value) / 100.0) * trackDur;
+            send('set_pos', { pos: pos });
+        }
+        setTimeout(() => { trackDragging = false; }, 400); 
+    });
+
+    const volSlider = document.getElementById('main-vol');
+    let volDragging = false;
+
+    volSlider.addEventListener('input', e => {
+        volDragging = true;
+        updateVolUI(volSlider);
+        playHaptic('light');
+    });
+
+    volSlider.addEventListener('change', e => {
+        send('set_vol', { id: -1, vol: parseInt(volSlider.value) });
+        setTimeout(() => { volDragging = false; }, 400);
+    });
+
+    const pad = document.getElementById('trackpad');
+    let lx = 0, ly = 0, lastCount = 0, sx = 0, sy = 0, st = 0, moved = false, longT = null;
     const cancelLong = () => { if (longT) { clearTimeout(longT); longT = null; } };
 
     pad.addEventListener('touchstart', e => {
-        e.preventDefault();
-        const t = e.touches[0];
-        lx = sx = t.clientX; ly = sy = t.clientY;
-        st = Date.now(); moved = false; lastCount = e.touches.length;
-
-        if (e.touches.length === 1) {
-            longT = setTimeout(() => {
-                if (!moved) {
-                    send('click_right');
-                    if (navigator.vibrate) navigator.vibrate([8,40,8]);
-                    moved = true;
-                }
-            }, 520);
-        }
+        e.preventDefault(); const t = e.touches[0]; lx = sx = t.clientX; ly = sy = t.clientY; st = Date.now(); moved = false; lastCount = e.touches.length;
+        if (e.touches.length === 1) longT = setTimeout(() => { if (!moved) { send('click_right'); playHaptic('heavy'); moved = true; } }, 520);
     }, { passive: false });
-
     pad.addEventListener('touchend', e => {
         cancelLong();
-        if (!moved && Date.now() - st < 230) {
-            lastCount >= 2 ? send('click_right') : send('click_left');
-            if (navigator.vibrate) navigator.vibrate(4);
-        }
+        if (!moved && Date.now() - st < 230) { lastCount >= 2 ? send('click_right') : send('click_left'); playHaptic('medium'); }
         if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
         lastCount = e.touches.length;
     });
-
     pad.addEventListener('touchmove', e => {
         if (e.cancelable) e.preventDefault();
-        if (e.touches.length !== lastCount) {
-            cancelLong(); lastCount = e.touches.length;
-            if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
-            return;
-        }
+        if (e.touches.length !== lastCount) { cancelLong(); lastCount = e.touches.length; if (e.touches.length > 0) { lx = e.touches[0].clientX; ly = e.touches[0].clientY; } return; }
         const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
         if (!moved && Math.hypot(cx - sx, cy - sy) > 4) { moved = true; cancelLong(); }
-
-        if (e.touches.length === 2) {
-            const dy = -(cy - ly) * 2.8;
-            if (Math.abs(dy) > 0.4) send('scroll', { y: dy });
-            lx = cx; ly = cy;
-        } else if (e.touches.length === 1) {
-            const dx = (cx - lx) * 2.0, dy = (cy - ly) * 2.0;
-            if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) send('mouse_move', { x: dx, y: dy });
-            lx = cx; ly = cy;
-        }
+        if (e.touches.length === 2) { const dy = -(cy - ly) * 2.8; if (Math.abs(dy) > 0.4) send('scroll', { y: dy }); lx = cx; ly = cy; } 
+        else if (e.touches.length === 1) { const dx = (cx - lx) * 2.0, dy = (cy - ly) * 2.0; if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) send('mouse_move', { x: dx, y: dy }); lx = cx; ly = cy; }
     }, { passive: false });
 
-    // ── Slider drag guard ─────────────────────────────────────────────────────
-    let dragging = false;
-    function setupSliders() {
-        document.querySelectorAll('input[type=range]').forEach(s => {
-            s.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
-            s.addEventListener('touchend',   () => { setTimeout(() => { dragging = false; }, 700); }, { passive: true });
-            s.addEventListener('mousedown',  () => { dragging = true; });
-            s.addEventListener('mouseup',    () => { setTimeout(() => { dragging = false; }, 150); });
-        });
-    }
-    window.addEventListener('load', setupSliders);
-
-    // ── Mixer ─────────────────────────────────────────────────────────────────
     async function loadMixer() {
-        if (!ip) return;
-        const list = document.getElementById('mixer-list');
-        list.innerHTML = '<div class="empty">Loading...</div>';
+        if (!ip) return; const list = document.getElementById('mixer-list'); list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--dim)">Loading...</div>';
         try {
             const apps = await apiFetch('/mixer').then(r => r.json());
-            if (!apps.length) { list.innerHTML = '<div class="empty">No audio sessions</div>'; return; }
+            if (!apps.length) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--dim)">No audio sessions</div>'; return; }
             const card = document.createElement('div'); card.className = 'mix-card';
-            const sp = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
-            const cp = '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>';
             apps.forEach(a => {
                 const row = document.createElement('div'); row.className = 'mix-row';
-                const ico = a.icon
-                    ? `<img src="data:image/png;base64,${a.icon}" class="app-ic" alt="">`
-                    : `<div class="app-ph"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${a.pid===-1?sp:cp}</svg></div>`;
-                row.innerHTML = `${ico}<div class="app-nm">${a.name}</div>
-                    <input type="range" class="mslider" min="0" max="100" value="${a.vol}"
-                           oninput="send('set_vol',{id:${a.pid},vol:parseInt(this.value)})">`;
+                const ico = a.icon ? `<img src="data:image/png;base64,${a.icon}" class="app-ic" alt="">` : `<div class="app-ic" style="background:rgba(255,255,255,.05)"></div>`;
+                row.innerHTML = `${ico}<div class="app-nm">${a.name}</div><div class="slider-container" style="width:110px"><input type="range" class="vslider mix-sl" id="mix-${a.pid}" data-id="${a.pid}" min="0" max="100" value="${a.vol}"><div class="slider-track"><div class="slider-fill" id="mix-${a.pid}-fill" style="--val:${a.vol}%"></div></div></div>`;
                 card.appendChild(row);
             });
             list.innerHTML = ''; list.appendChild(card);
-            setupSliders();
-        } catch { list.innerHTML = '<div class="empty">Disconnected</div>'; }
+
+            document.querySelectorAll('.mix-sl').forEach(sl => {
+                sl.addEventListener('input', e => { volDragging = true; updateVolUI(sl); playHaptic('light'); });
+                sl.addEventListener('change', e => { send('set_vol', { id: parseInt(sl.getAttribute('data-id')), vol: parseInt(sl.value) }); setTimeout(() => { volDragging = false; }, 400); });
+            });
+        } catch { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--dim)">Disconnected</div>'; }
     }
 
-    // ── Media state ───────────────────────────────────────────────────────────
-    let lastTitle = '', lastPlaying = null;
-    let trackPos = 0, trackDur = 0, lastPingTime = 0;
-
-    function fmt(sec) {
-        const s = Math.floor(sec), m = Math.floor(s / 60);
-        return `${m}:${String(s % 60).padStart(2,'0')}`;
-    }
-
-    // Interpolate progress between pings for smooth animation
-    function tickProgress() {
-        if (!lastPlaying || trackDur <= 0) return;
-        const elapsed = (Date.now() - lastPingTime) / 1000;
-        const cur = Math.min(trackPos + elapsed, trackDur);
-        document.getElementById('progress-fill').style.width = `${(cur / trackDur) * 100}%`;
-        document.getElementById('t-pos').textContent = fmt(cur);
-    }
-    setInterval(tickProgress, 500);
-
-    async function ping() {
-        if (!ip) return;
+    async function syncMixer() {
+        if (volDragging || !ip) return;
         try {
-            const res = await apiFetch('/ping').then(r => r.json());
-            document.getElementById('dot').classList.add('on');
-            document.getElementById('status').textContent = 'Connected';
-
-            const parts = res.window.split(' • ');
-            const title = parts[0] || 'Not Playing';
-            const artist = parts[1] || 'System Idle';
-
-            // Album art transition
-            if (title !== lastTitle) {
-                lastTitle = title;
-                const art = document.getElementById('art');
-                art.classList.add('fade');
-                setTimeout(() => {
-                    document.getElementById('track-title').textContent = title;
-                    document.getElementById('track-artist').textContent = artist;
-                    if (res.cover) {
-                        const url = `url('data:image/png;base64,${res.cover}')`;
-                        art.style.backgroundImage = url;
-                        document.getElementById('bg').style.backgroundImage = url;
-                        document.getElementById('bg').style.opacity = '1';
-                    } else {
-                        art.style.backgroundImage = '';
-                        document.getElementById('bg').style.opacity = '0';
-                    }
-                    art.classList.remove('fade');
-                }, 240);
-            }
-
-            // Play / pause icon
-            if (res.playing !== lastPlaying) {
-                lastPlaying = res.playing;
-                const icon = document.getElementById('play-icon');
-                icon.innerHTML = res.playing
-                    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
-                    : '<polygon points="5 3 19 12 5 21 5 3"/>';
-                icon.setAttribute('fill', 'black');
-            }
-
-            // Progress bar & times
-            trackPos = res.position || 0;
-            trackDur = res.duration || 0;
-            lastPingTime = Date.now();
-            document.getElementById('t-dur').textContent = fmt(trackDur);
-            if (trackDur > 0) {
-                document.getElementById('progress-fill').style.width = `${(trackPos / trackDur) * 100}%`;
-                document.getElementById('t-pos').textContent = fmt(trackPos);
-            }
-
-            // Volume slider
-            const sl = document.querySelector('.vslider');
-            if (sl && !dragging) sl.value = res.volume;
-
-        } catch (e) {
-            if (e.message !== 'unauthorized') {
-                document.getElementById('dot').classList.remove('on');
-                document.getElementById('status').textContent = 'RemoteXS';
-            }
-        }
+            const apps = await apiFetch('/mixer').then(r => r.json());
+            apps.forEach(a => {
+                const sl = document.getElementById(`mix-${a.pid}`);
+                if (sl && !volDragging) { sl.value = a.vol; updateVolUI(sl); }
+            });
+        } catch {}
     }
 
+    let lastTrackHash = '', lastPlaying = null, trackPos = 0, trackDur = 0, lastPingTime = 0;
+    function fmt(sec) { const s = Math.floor(sec), m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2,'0')}`; }
+    
+    setInterval(() => {
+        if (!lastPlaying || trackDur <= 0 || trackDragging) return;
+        const cur = Math.min(trackPos + ((Date.now() - lastPingTime) / 1000), trackDur);
+        trkSlider.value = (cur / trackDur) * 100;
+        updateVolUI(trkSlider);
+        document.getElementById('t-pos').textContent = fmt(cur);
+    }, 500);
+
+    function handleState(res) {
+        document.getElementById('dot').classList.add('on'); document.getElementById('status').textContent = 'Connected';
+        const parts = res.window ? res.window.split(' • ') : [];
+        const title = parts[0] || 'Not Playing';
+        const artist = parts[1] || 'System Idle';
+        
+        const coverLen = res.cover ? res.cover.length : 0;
+        const trackHash = `${title}-${artist}-${coverLen}`;
+
+        if (trackHash !== lastTrackHash) {
+            lastTrackHash = trackHash; 
+            const art = document.getElementById('art'); 
+            art.classList.add('fade');
+            setTimeout(() => {
+                document.getElementById('track-title').textContent = title; document.getElementById('track-artist').textContent = artist;
+                if (res.cover) { const url = `url('data:image/png;base64,${res.cover}')`; art.style.backgroundImage = url; document.getElementById('bg').style.backgroundImage = url; document.getElementById('bg').style.opacity = '1'; } 
+                else { art.style.backgroundImage = ''; document.getElementById('bg').style.opacity = '0'; }
+                art.classList.remove('fade');
+            }, 300);
+        }
+
+        if (res.playing !== lastPlaying) {
+            lastPlaying = res.playing; const icon = document.getElementById('play-icon');
+            icon.innerHTML = res.playing ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<polygon points="7 4 19 12 7 20 7 4"/>';
+        }
+        
+        trackPos = res.position || 0; trackDur = res.duration || 0; lastPingTime = Date.now();
+        document.getElementById('t-dur').textContent = fmt(trackDur);
+        
+        if (trackDur > 0 && !trackDragging) { 
+            const curPerc = (trackPos / trackDur) * 100;
+            trkSlider.value = curPerc;
+            updateVolUI(trkSlider);
+            document.getElementById('t-pos').textContent = fmt(trackPos); 
+        }
+        
+        if (volSlider && !volDragging) { volSlider.value = res.volume; updateVolUI(volSlider); }
+    }
+
+    let ws = null, pingTimer = null;
+    function connectWs() {
+        if (!ip || !token) { startPollFallback(); return; }
+        if (ws && ws.readyState <= 1) return;
+        try {
+            ws = new WebSocket(`ws://${ip}/ws?token=${encodeURIComponent(token)}`);
+            ws.onopen = () => { stopPollFallback(); ping(); };
+            ws.onmessage = e => { try { handleState(JSON.parse(e.data)); } catch {} };
+            ws.onclose = ws.onerror = () => { ws = null; startPollFallback(); setTimeout(connectWs, 3000); document.getElementById('dot').classList.remove('on'); document.getElementById('status').textContent = 'RemoteXS'; };
+        } catch { startPollFallback(); }
+    }
+    function startPollFallback() { if (pingTimer) return; ping(); pingTimer = setInterval(ping, 500); }
+    function stopPollFallback() { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } }
+    async function ping() { if (!ip) return; try { const res = await apiFetch('/ping').then(r => r.json()); handleState(res); } catch(e) { if(e.message!=='unauthorized'){document.getElementById('dot').classList.remove('on'); document.getElementById('status').textContent = 'RemoteXS';} } }
+
+    function openClipSheet() { playHaptic('light'); document.getElementById('clip-sheet').classList.add('open'); document.getElementById('clip-overlay').classList.add('open'); }
+    function closeClipSheet() { document.getElementById('clip-sheet').classList.remove('open'); document.getElementById('clip-overlay').classList.remove('open'); }
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.opacity = '1'; clearTimeout(t._t); t._t = setTimeout(() => { t.style.opacity = '0'; }, 1800); }
+
+    async function copyFromPC() { closeClipSheet(); try { const r = await apiFetch('/clipboard').then(r => r.json()); if (r.text) { await navigator.clipboard.writeText(r.text); showToast('Copied from PC'); } else { showToast('PC clipboard is empty'); } } catch { showToast('Failed to get clipboard'); } }
+    async function pasteToPC() { closeClipSheet(); try { const text = await navigator.clipboard.readText(); await send('clipboard_set', { text }); showToast('Pasted to PC'); } catch { showToast('Clipboard access denied'); } }
+
+    const presZone = document.getElementById('pres-swipe');
+    let presStart = null;
+    presZone.addEventListener('touchstart', e => { presStart = e.touches[0].clientX; }, { passive: true });
+    presZone.addEventListener('touchend', e => {
+        if (presStart === null) return;
+        const dx = e.changedTouches[0].clientX - presStart; presStart = null;
+        if (Math.abs(dx) < 50) return;
+        send(dx < 0 ? 'pres_next' : 'pres_prev'); playHaptic('heavy');
+    }, { passive: true });
     document.addEventListener('gesturestart', e => e.preventDefault());
-    if (ip) ping();
-    setInterval(ping, 400);
+
+    if (ip && token) connectWs();
     </script>
 </body>
 </html>

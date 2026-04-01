@@ -122,7 +122,14 @@ public void UpdateServerPort(int newPort)
                 var enumerator = new MMDeviceEnumerator();
                 _audioDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             }
-            catch { }
+            catch { _audioDevice = null; }
+        }
+
+        // Re-initializes audio if the device is stale (e.g. headphones swapped).
+        private void EnsureAudioDevice()
+        {
+            if (_audioDevice != null) return;
+            InitializeAudio();
         }
 
         private async void InitializeMediaManager()
@@ -304,6 +311,7 @@ private async void HandleRequest(HttpListenerContext context)
             var list = new List<MixerItem>();
             try
             {
+                EnsureAudioDevice();
                 if (_audioDevice == null) return list;
 
                 list.Add(new MixerItem
@@ -380,11 +388,12 @@ private async void HandleRequest(HttpListenerContext context)
 
         private void SetAppVolume(int id, int vol)
         {
-            if (_audioDevice == null) return;
             float v = Math.Clamp(vol, 0, 100) / 100.0f;
-
             try
             {
+                EnsureAudioDevice();
+                if (_audioDevice == null) return;
+
                 if (id == -1)
                 {
                     _audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar = v;
@@ -395,13 +404,15 @@ private async void HandleRequest(HttpListenerContext context)
                     for (int i = 0; i < sessions.Count; i++)
                     {
                         if (sessions[i].GetProcessID == id)
-                        {
                             sessions[i].SimpleAudioVolume.Volume = v;
-                        }
                     }
                 }
             }
-            catch { }
+            catch
+            {
+                // Device likely changed — reinitialize for the next call
+                _audioDevice = null;
+            }
         }
 
         private void ExecuteCommand(CommandData data)
@@ -451,6 +462,7 @@ private async Task<object> GetMediaInfo()
 
     try
     {
+        EnsureAudioDevice();
         if (_audioDevice != null)
         {
             currentVol = (int)(_audioDevice.AudioEndpointVolume.MasterVolumeLevelScalar * 100);

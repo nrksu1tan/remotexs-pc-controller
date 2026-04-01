@@ -11,16 +11,17 @@
 
     <style>
         :root {
-            --bg: #000000;
             --surface: rgba(255, 255, 255, 0.07);
-            --surface-hi: rgba(255, 255, 255, 0.12);
+            --surface-hi: rgba(255, 255, 255, 0.13);
             --border: rgba(255, 255, 255, 0.10);
             --text: #ffffff;
             --text-dim: rgba(255, 255, 255, 0.45);
-            --text-dimmer: rgba(255, 255, 255, 0.22);
+            --text-dimmer: rgba(255, 255, 255, 0.20);
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
-            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+            --radius-card: 20px;
+            --radius-pill: 100px;
         }
 
         * {
@@ -32,7 +33,7 @@
         }
 
         body {
-            background: var(--bg);
+            background: #000;
             color: var(--text);
             margin: 0;
             height: 100dvh;
@@ -42,86 +43,78 @@
             overscroll-behavior: none;
         }
 
-        .bg-base {
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            background: #000;
-        }
-
+        /* Background */
         #cover-bg {
             position: fixed;
-            inset: 0;
+            inset: -30px;
             z-index: -1;
             background-size: cover;
             background-position: center;
-            filter: blur(80px) brightness(0.18) saturate(1.4);
+            filter: blur(90px) brightness(0.15) saturate(1.6);
             opacity: 0;
-            transition: opacity 1.8s ease;
-            transform: scale(1.15);
+            transition: opacity 2s ease;
         }
 
-        .app-layout {
+        /* App shell */
+        .app {
             display: flex;
             flex-direction: column;
             height: 100%;
-            padding-top: max(14px, var(--safe-top));
+            padding-top: max(16px, var(--safe-top));
         }
 
-        /* Header */
-        .header {
+        /* Nav bar */
+        .navbar {
             flex-shrink: 0;
             height: 44px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0 22px;
+            justify-content: space-between;
+            padding: 0 20px;
             z-index: 10;
         }
 
-        .logo {
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            color: var(--text-dimmer);
+        .nav-status {
             display: flex;
             align-items: center;
-            gap: 8px;
-            text-transform: uppercase;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dimmer);
+            letter-spacing: -0.01em;
         }
 
         .status-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--text-dimmer);
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
+            background: var(--text-dimmer);
             transition: background 0.4s, box-shadow 0.4s;
             flex-shrink: 0;
         }
 
         .status-dot.online {
             background: #30D158;
-            box-shadow: 0 0 8px rgba(48, 209, 88, 0.5);
+            box-shadow: 0 0 10px rgba(48, 209, 88, 0.6);
         }
 
-        .header-btn {
-            width: 36px;
-            height: 36px;
+        .nav-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--text-dim);
-            border-radius: 50%;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.15s;
         }
 
-        .header-btn:active {
+        .nav-btn:active {
             background: var(--surface-hi);
-            color: var(--text);
         }
 
-        /* Content */
-        .content-area {
+        /* Content area */
+        .content {
             flex: 1;
             position: relative;
             overflow: hidden;
@@ -132,135 +125,140 @@
             inset: 0;
             display: flex;
             flex-direction: column;
-            padding: 8px 22px;
             opacity: 0;
             pointer-events: none;
-            transform: translateY(6px) scale(0.99);
-            transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-                        transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(8px);
+            transition: opacity 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, opacity;
         }
 
         .view.active {
             opacity: 1;
             pointer-events: all;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
         }
 
-        /* Media tab */
-        .art-container {
+        /* ─── MEDIA TAB ─── */
+        #tab-media {
+            padding: 0 20px;
+            padding-bottom: calc(80px + var(--safe-bottom));
+        }
+
+        .art-wrap {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 0;
-            padding-bottom: 12px;
+            padding: 12px 0 18px;
         }
 
-        .art-box {
+        .art {
             width: 100%;
-            max-width: 300px;
+            max-width: 320px;
             aspect-ratio: 1;
-            background: rgba(255, 255, 255, 0.05);
             border-radius: 22px;
-            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.7), 0 0 0 0.5px var(--border);
+            background: rgba(255, 255, 255, 0.05);
             background-size: cover;
             background-position: center;
-            transition: opacity 0.35s ease, transform 0.35s ease;
+            box-shadow: 0 28px 56px rgba(0, 0, 0, 0.65),
+                        0 0 0 0.5px rgba(255, 255, 255, 0.07);
+            transition: opacity 0.3s, transform 0.3s;
         }
 
-        .art-box.changing {
+        .art.fade {
             opacity: 0;
             transform: scale(0.96);
         }
 
-        .media-controls {
-            padding-bottom: calc(76px + var(--safe-bottom));
-        }
-
         .track-info {
             text-align: center;
-            margin-bottom: 22px;
+            margin-bottom: 24px;
+            padding: 0 12px;
         }
 
-        .t-title {
+        .track-title {
             font-size: 20px;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-            margin-bottom: 5px;
-            white-space: nowrap;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
             overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .track-artist {
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--text-dim);
+            overflow: hidden;
+            white-space: nowrap;
             text-overflow: ellipsis;
         }
 
-        .t-artist {
-            font-size: 15px;
-            color: var(--text-dim);
-            letter-spacing: -0.005em;
-        }
-
-        .controls-row {
+        .controls {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
 
-        .btn-icon {
-            color: rgba(255, 255, 255, 0.65);
+        .ctrl-btn {
+            width: 56px;
+            height: 56px;
             background: var(--surface);
-            padding: 12px 28px;
+            border: 0.5px solid var(--border);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-radius: 16px;
-            border: 0.5px solid var(--border);
-            transition: background 0.15s, transform 0.15s, color 0.15s;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            transition: background 0.15s, transform 0.15s;
         }
 
-        .btn-icon:active {
-            transform: scale(0.88);
+        .ctrl-btn:active {
+            transform: scale(0.87);
             background: var(--surface-hi);
-            color: white;
+            color: #fff;
         }
 
         .play-btn {
-            width: 68px;
-            height: 68px;
-            background: white;
-            color: black;
+            width: 72px;
+            height: 72px;
+            background: #fff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 24px rgba(255, 255, 255, 0.12);
+            box-shadow: 0 6px 28px rgba(255, 255, 255, 0.14);
             transition: transform 0.15s, background 0.15s;
-            flex-shrink: 0;
         }
 
         .play-btn:active {
-            transform: scale(0.91);
-            background: rgba(255, 255, 255, 0.82);
+            transform: scale(0.90);
+            background: rgba(255, 255, 255, 0.84);
         }
 
-        /* Volume */
-        .volume-container {
+        .vol-bar {
             display: flex;
-            gap: 10px;
             align-items: center;
+            gap: 10px;
             background: var(--surface);
+            border: 0.5px solid var(--border);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 0.5px solid var(--border);
-            padding: 8px;
-            border-radius: 100px;
-            height: 60px;
+            border-radius: var(--radius-pill);
+            padding: 8px 12px 8px 8px;
+            height: 58px;
         }
 
         .mute-btn {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.08);
             display: flex;
@@ -273,150 +271,171 @@
 
         .mute-btn:active {
             background: rgba(255, 255, 255, 0.18);
-            transform: scale(0.92);
+            transform: scale(0.90);
         }
 
-        .vol-slider-wrapper {
-            flex: 1;
+        .vol-icons {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 0 8px;
+            flex: 1;
         }
 
-        .vol-icon {
-            color: var(--text-dimmer);
-            flex-shrink: 0;
-        }
+        .vol-ic { color: var(--text-dimmer); flex-shrink: 0; }
 
-        input[type=range].main-vol {
+        input[type=range].vol-range {
             flex: 1;
             -webkit-appearance: none;
             background: transparent;
             touch-action: none;
+            min-width: 0;
         }
 
-        input[type=range].main-vol::-webkit-slider-runnable-track {
+        input[type=range].vol-range::-webkit-slider-runnable-track {
             height: 4px;
             background: rgba(255, 255, 255, 0.18);
             border-radius: 2px;
         }
 
-        input[type=range].main-vol::-webkit-slider-thumb {
+        input[type=range].vol-range::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            background: white;
+            width: 22px;
+            height: 22px;
+            background: #fff;
             border-radius: 50%;
-            margin-top: -10px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+            margin-top: -9px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
         }
 
-        /* Mouse tab */
+        /* ─── MOUSE TAB ─── */
         #tab-mouse {
+            padding: 10px 20px calc(80px + var(--safe-bottom));
             touch-action: none;
-            padding-bottom: calc(86px + var(--safe-bottom));
         }
 
-        .pad-area {
+        .pad {
             flex: 1;
             background: var(--surface);
+            border: 0.5px solid var(--border);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 0.5px solid var(--border);
-            margin-bottom: 14px;
+            border-radius: 22px;
             position: relative;
+            overflow: hidden;
+            margin-bottom: 12px;
         }
 
-        .pad-area::after {
-            content: '';
+        .pad-center-dot {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 3px;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.18);
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.14);
             border-radius: 50%;
         }
 
-        .mouse-row {
+        .pad-hint {
+            position: absolute;
+            bottom: 16px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-dimmer);
+            letter-spacing: 0.02em;
+            pointer-events: none;
+        }
+
+        .click-row {
             display: flex;
-            gap: 12px;
-            height: 64px;
+            gap: 10px;
+            height: 56px;
             flex-shrink: 0;
         }
 
-        .m-btn {
+        .click-btn {
             flex: 1;
             background: var(--surface);
+            border: 0.5px solid var(--border);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-radius: 16px;
-            border: 0.5px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 13px;
             font-weight: 500;
-            letter-spacing: 0.02em;
             color: var(--text-dim);
-            transition: background 0.12s, color 0.12s, transform 0.12s;
+            letter-spacing: -0.01em;
+            transition: background 0.1s, color 0.1s, transform 0.1s;
         }
 
-        .m-btn:active {
-            background: white;
-            color: black;
-            transform: scale(0.97);
+        .click-btn:active {
+            background: #fff;
+            color: #000;
+            transform: scale(0.96);
         }
 
-        /* Mixer tab */
+        /* ─── MIXER TAB ─── */
         #tab-mixer {
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-y;
-            padding-bottom: calc(100px + var(--safe-bottom));
+            padding: 0 20px calc(100px + var(--safe-bottom));
         }
 
-        .section-title {
-            font-size: 22px;
+        .section-header {
+            font-size: 24px;
             font-weight: 700;
             letter-spacing: -0.03em;
-            margin-bottom: 16px;
-            margin-top: 4px;
-            padding-left: 2px;
+            margin: 10px 0 16px 2px;
+        }
+
+        .mix-list {
+            background: var(--surface);
+            border: 0.5px solid var(--border);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-card);
+            overflow: hidden;
         }
 
         .mix-item {
             display: flex;
             align-items: center;
             gap: 14px;
-            background: var(--surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 0.5px solid var(--border);
-            padding: 13px 16px;
-            border-radius: 18px;
-            margin-bottom: 10px;
+            padding: 12px 16px;
+            position: relative;
         }
 
-        .app-img {
-            width: 42px;
-            height: 42px;
-            border-radius: 11px;
+        .mix-item + .mix-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 74px;
+            right: 0;
+            height: 0.5px;
+            background: var(--border);
+        }
+
+        .app-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
             object-fit: contain;
             background: rgba(255, 255, 255, 0.06);
             padding: 4px;
             flex-shrink: 0;
         }
 
-        .app-ph {
-            width: 42px;
-            height: 42px;
-            border-radius: 11px;
+        .app-icon-ph {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
             background: rgba(255, 255, 255, 0.07);
-            border: 0.5px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -424,42 +443,41 @@
             flex-shrink: 0;
         }
 
-        .app-name {
+        .app-label {
             flex: 1;
-            font-weight: 500;
             font-size: 14px;
+            font-weight: 500;
             letter-spacing: -0.01em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: rgba(255, 255, 255, 0.85);
         }
 
-        input[type=range].mix-vol {
-            width: 100px;
+        input[type=range].mix-range {
+            width: 90px;
             -webkit-appearance: none;
             background: transparent;
             touch-action: none;
         }
 
-        input[type=range].mix-vol::-webkit-slider-runnable-track {
+        input[type=range].mix-range::-webkit-slider-runnable-track {
             height: 4px;
             background: rgba(255, 255, 255, 0.14);
             border-radius: 2px;
         }
 
-        input[type=range].mix-vol::-webkit-slider-thumb {
+        input[type=range].mix-range::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 18px;
             height: 18px;
-            background: white;
+            background: #fff;
             margin-top: -7px;
             border-radius: 50%;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
         }
 
-        /* Dock */
-        .dock-wrapper {
+        /* ─── DOCK ─── */
+        .dock-wrap {
             position: fixed;
             bottom: max(14px, var(--safe-bottom));
             left: 0;
@@ -472,39 +490,38 @@
 
         .dock {
             pointer-events: auto;
-            background: rgba(28, 28, 30, 0.75);
+            background: rgba(26, 26, 28, 0.78);
             backdrop-filter: blur(40px) saturate(180%);
             -webkit-backdrop-filter: blur(40px) saturate(180%);
             border: 0.5px solid rgba(255, 255, 255, 0.12);
-            padding: 6px 8px;
-            border-radius: 100px;
+            padding: 7px 10px;
+            border-radius: var(--radius-pill);
             display: flex;
-            gap: 2px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
-                        inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+            gap: 4px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
         }
 
-        .dock-btn {
-            width: 52px;
-            height: 52px;
+        .dock-item {
+            width: 50px;
+            height: 50px;
+            border-radius: var(--radius-pill);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255, 255, 255, 0.38);
-            border-radius: 100px;
-            transition: all 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+            color: rgba(255, 255, 255, 0.36);
+            transition: color 0.25s cubic-bezier(0.34, 1.5, 0.64, 1),
+                        background 0.25s,
+                        transform 0.25s cubic-bezier(0.34, 1.5, 0.64, 1);
         }
 
-        .dock-btn:active {
-            transform: scale(0.86) !important;
-        }
+        .dock-item:active { transform: scale(0.84); }
 
-        .dock-btn.active {
-            color: white;
+        .dock-item.active {
+            color: #fff;
             background: rgba(255, 255, 255, 0.12);
         }
 
-        /* Setup */
+        /* ─── SETUP SCREEN ─── */
         #setup {
             position: fixed;
             inset: 0;
@@ -515,79 +532,109 @@
             align-items: center;
             justify-content: center;
             padding: 40px 30px;
+            gap: 0;
         }
 
-        #setup.hidden {
-            display: none;
-        }
+        #setup.hidden { display: none; }
 
-        .setup-label {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.10em;
-            text-transform: uppercase;
-            color: var(--text-dimmer);
-            margin-bottom: 24px;
-        }
-
-        .ip-inp {
+        .setup-icon {
+            width: 64px;
+            height: 64px;
             background: rgba(255, 255, 255, 0.07);
             border: 0.5px solid var(--border);
-            color: white;
-            padding: 14px 20px;
-            border-radius: 14px;
-            font-size: 17px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            color: var(--text-dim);
+        }
+
+        .setup-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+        }
+
+        .setup-sub {
+            font-size: 13px;
+            color: var(--text-dim);
             text-align: center;
-            margin-bottom: 14px;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        .ip-field {
+            background: rgba(255, 255, 255, 0.07);
+            border: 0.5px solid var(--border);
+            color: #fff;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 16px;
+            text-align: center;
             width: 240px;
             outline: none;
             font-family: "SF Mono", "Menlo", "Consolas", monospace;
             letter-spacing: 0.02em;
+            margin-bottom: 12px;
+            transition: border-color 0.15s, background 0.15s;
         }
 
-        .ip-inp:focus {
-            border-color: rgba(255, 255, 255, 0.3);
+        .ip-field:focus {
+            border-color: rgba(255, 255, 255, 0.28);
             background: rgba(255, 255, 255, 0.10);
         }
 
-        .con-btn {
-            background: white;
-            color: black;
+        .connect-btn {
+            background: #fff;
+            color: #000;
             border: none;
-            padding: 14px 44px;
-            border-radius: 100px;
+            padding: 14px 42px;
+            border-radius: var(--radius-pill);
             font-weight: 600;
             font-size: 15px;
             letter-spacing: -0.01em;
             cursor: pointer;
             font-family: var(--font);
-            transition: opacity 0.15s;
+            transition: opacity 0.15s, transform 0.15s;
         }
 
-        .con-btn:active {
+        .connect-btn:active {
             opacity: 0.8;
+            transform: scale(0.97);
         }
 
         .setup-footer {
             position: absolute;
-            bottom: max(24px, var(--safe-bottom));
+            bottom: max(22px, var(--safe-bottom));
             font-size: 11px;
             color: var(--text-dimmer);
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        /* ─── EMPTY STATES ─── */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-dimmer);
+            font-size: 14px;
+            font-weight: 500;
         }
     </style>
 </head>
 
 <body>
-    <div class="bg-base"></div>
     <div id="cover-bg"></div>
 
-    <div class="app-layout">
-        <div class="header">
-            <div class="logo">
+    <div class="app">
+        <div class="navbar">
+            <div class="nav-status">
                 <div id="status-dot" class="status-dot"></div>
-                RemoteXS
+                <span id="status-label">RemoteXS</span>
             </div>
-            <div class="header-btn" onclick="document.getElementById('setup').classList.remove('hidden')">
+            <div class="nav-btn" onclick="document.getElementById('setup').classList.remove('hidden')">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
@@ -596,85 +643,81 @@
             </div>
         </div>
 
-        <div class="content-area">
+        <div class="content">
 
             <!-- MEDIA -->
             <div id="tab-media" class="view active">
-                <div class="art-container">
-                    <div id="art" class="art-box"></div>
+                <div class="art-wrap">
+                    <div id="art" class="art"></div>
                 </div>
-
-                <div class="media-controls">
-                    <div class="track-info">
-                        <div id="track" class="t-title">Not Playing</div>
-                        <div id="artist" class="t-artist">System Idle</div>
+                <div class="track-info">
+                    <div id="track" class="track-title">Not Playing</div>
+                    <div id="artist" class="track-artist">System Idle</div>
+                </div>
+                <div class="controls">
+                    <div class="ctrl-btn" ontouchend="send('prev')">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="19 20 9 12 19 4 19 20"/>
+                            <line x1="5" x2="5" y1="19" y2="5"/>
+                        </svg>
                     </div>
-
-                    <div class="controls-row">
-                        <div class="btn-icon" ontouchend="send('prev')">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="19 20 9 12 19 4 19 20"/>
-                                <line x1="5" x2="5" y1="19" y2="5"/>
-                            </svg>
-                        </div>
-                        <div class="play-btn" ontouchend="send('play_pause')">
-                            <svg id="play-icon" width="28" height="28" viewBox="0 0 24 24" fill="black" stroke="none">
-                                <polygon points="5 3 19 12 5 21 5 3"/>
-                            </svg>
-                        </div>
-                        <div class="btn-icon" ontouchend="send('next')">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="5 4 15 12 5 20 5 4"/>
-                                <line x1="19" x2="19" y1="5" y2="19"/>
-                            </svg>
-                        </div>
+                    <div class="play-btn" ontouchend="send('play_pause')">
+                        <svg id="play-icon" width="30" height="30" viewBox="0 0 24 24" fill="black" stroke="none">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
                     </div>
-
-                    <div class="volume-container">
-                        <div class="mute-btn" ontouchend="send('mute')">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                                <line x1="23" x2="17" y1="9" y2="15"/>
-                                <line x1="17" x2="23" y1="9" y2="15"/>
-                            </svg>
-                        </div>
-                        <div class="vol-slider-wrapper">
-                            <svg class="vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                            </svg>
-                            <input type="range" class="main-vol" min="0" max="100"
-                                oninput="send('set_vol', {id: -1, vol: parseInt(this.value)})">
-                            <svg class="vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                            </svg>
-                        </div>
+                    <div class="ctrl-btn" ontouchend="send('next')">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 4 15 12 5 20 5 4"/>
+                            <line x1="19" x2="19" y1="5" y2="19"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="vol-bar">
+                    <div class="mute-btn" ontouchend="send('mute')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <line x1="23" x2="17" y1="9" y2="15"/>
+                            <line x1="17" x2="23" y1="9" y2="15"/>
+                        </svg>
+                    </div>
+                    <div class="vol-icons">
+                        <svg class="vol-ic" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        </svg>
+                        <input type="range" class="vol-range" min="0" max="100"
+                            oninput="send('set_vol', {id:-1, vol:parseInt(this.value)})">
+                        <svg class="vol-ic" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        </svg>
                     </div>
                 </div>
             </div>
 
-            <!-- MOUSE -->
+            <!-- MOUSE / TRACKPAD -->
             <div id="tab-mouse" class="view">
-                <div id="trackpad" class="pad-area"></div>
-                <div class="mouse-row">
-                    <div class="m-btn" ontouchend="send('click_left')">Left</div>
-                    <div class="m-btn" ontouchend="send('click_right')">Right</div>
+                <div id="trackpad" class="pad">
+                    <div class="pad-center-dot"></div>
+                    <div class="pad-hint">Tap · Hold = right-click · 2 fingers = scroll</div>
+                </div>
+                <div class="click-row">
+                    <div class="click-btn" ontouchend="send('click_left')">Left</div>
+                    <div class="click-btn" ontouchend="send('click_right')">Right</div>
                 </div>
             </div>
 
             <!-- MIXER -->
             <div id="tab-mixer" class="view">
-                <div class="section-title">Mixer</div>
+                <div class="section-header">Mixer</div>
                 <div id="mixer-list">
-                    <div style="text-align:center; padding:50px 0; color:var(--text-dimmer); font-size:14px;">
-                        Connecting...
-                    </div>
+                    <div class="empty-state">Connecting...</div>
                 </div>
             </div>
 
@@ -682,9 +725,9 @@
     </div>
 
     <!-- DOCK -->
-    <div class="dock-wrapper">
+    <div class="dock-wrap">
         <div class="dock">
-            <div class="dock-btn active" onclick="go('media', this)">
+            <div class="dock-item active" onclick="go('media', this)">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 18V5l12-2v13"/>
@@ -692,27 +735,22 @@
                     <circle cx="18" cy="16" r="3"/>
                 </svg>
             </div>
-            <div class="dock-btn" onclick="go('mouse', this)">
+            <div class="dock-item" onclick="go('mouse', this)">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/>
                 </svg>
             </div>
-            <div class="dock-btn" onclick="go('mixer', this); loadMixer()">
+            <div class="dock-item" onclick="go('mixer', this); loadMixer()">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="21" x2="14" y1="4" y2="4"/>
-                    <line x1="10" x2="3" y1="4" y2="4"/>
-                    <line x1="21" x2="12" y1="12" y2="12"/>
-                    <line x1="8" x2="3" y1="12" y2="12"/>
-                    <line x1="21" x2="16" y1="20" y2="20"/>
-                    <line x1="12" x2="3" y1="20" y2="20"/>
-                    <circle cx="12" cy="4" r="2"/>
-                    <circle cx="10" cy="12" r="2"/>
-                    <circle cx="14" cy="20" r="2"/>
+                    <line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/>
+                    <line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/>
+                    <line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/>
+                    <circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/>
                 </svg>
             </div>
-            <div class="dock-btn" onclick="location.href='/keyboard'">
+            <div class="dock-item" onclick="location.href='/keyboard'">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <rect width="20" height="16" x="2" y="4" rx="2"/>
@@ -722,28 +760,49 @@
         </div>
     </div>
 
-    <!-- SETUP -->
+    <!-- SETUP SCREEN -->
     <div id="setup" class="hidden">
-        <div class="setup-label">Connect to PC</div>
-        <input id="ip" class="ip-inp" placeholder="192.168.x.x:8080" inputmode="url">
-        <button class="con-btn" onclick="saveIp()">Connect</button>
-        <div class="setup-footer">RemoteXS v2.2</div>
+        <div class="setup-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="14" x="2" y="3" rx="2"/>
+                <line x1="8" x2="16" y1="21" y2="21"/>
+                <line x1="12" x2="12" y1="17" y2="21"/>
+            </svg>
+        </div>
+        <div class="setup-title">Connect to PC</div>
+        <div class="setup-sub">Enter the IP address shown<br>in the RemoteXS window</div>
+        <input id="ip-input" class="ip-field" placeholder="192.168.x.x:8080" inputmode="url">
+        <button class="connect-btn" onclick="saveIp()">Connect</button>
+        <div class="setup-footer">REMOTEXS v2.2</div>
     </div>
 
     <script>
         document.addEventListener('gesturestart', e => e.preventDefault());
 
+        // ─── AUTO-DETECT IP FROM URL ─────────────────────────────────────────
+        // When opened via QR scan, the browser URL already contains the server IP.
+        // Extract it automatically — no manual entry needed.
         let ip = localStorage.getItem('xrd_ip');
+
+        if (!ip) {
+            const h = window.location.hostname;
+            const p = window.location.port;
+            if (h && h !== 'localhost' && h !== '127.0.0.1') {
+                ip = p ? `${h}:${p}` : h;
+                localStorage.setItem('xrd_ip', ip);
+            }
+        }
+
         if (!ip) {
             document.getElementById('setup').classList.remove('hidden');
         } else {
-            document.getElementById('ip').value = ip;
+            document.getElementById('ip-input').value = ip;
         }
 
-        let isDragging = false;
-
+        // ─── SETUP ───────────────────────────────────────────────────────────
         function saveIp() {
-            const val = document.getElementById('ip').value.trim();
+            const val = document.getElementById('ip-input').value.trim();
             if (!val) return;
             ip = val;
             localStorage.setItem('xrd_ip', ip);
@@ -751,14 +810,16 @@
             ping();
         }
 
+        // ─── NAVIGATION ──────────────────────────────────────────────────────
         function go(name, el) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('tab-' + name).classList.add('active');
-            document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.dock-item').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
-            if (navigator.vibrate) navigator.vibrate(5);
+            if (navigator.vibrate) navigator.vibrate(4);
         }
 
+        // ─── SEND COMMAND ─────────────────────────────────────────────────────
         async function send(cmd, data = {}) {
             if (!ip) return;
             try {
@@ -769,99 +830,159 @@
             } catch {}
         }
 
-        // Trackpad
+        // ─── MACBOOK TRACKPAD ─────────────────────────────────────────────────
         const pad = document.getElementById('trackpad');
-        let lx = 0, ly = 0, lastTouchCount = 0;
+        let lx = 0, ly = 0, lastCount = 0;
+        let startX = 0, startY = 0, startTime = 0;
+        let hasMoved = false, longTimer = null;
+
+        function cancelLong() {
+            if (longTimer) { clearTimeout(longTimer); longTimer = null; }
+        }
 
         pad.addEventListener('touchstart', e => {
-            lx = e.touches[0].clientX;
-            ly = e.touches[0].clientY;
-            lastTouchCount = e.touches.length;
+            e.preventDefault();
+            const t = e.touches[0];
+            lx = startX = t.clientX;
+            ly = startY = t.clientY;
+            startTime = Date.now();
+            hasMoved = false;
+            lastCount = e.touches.length;
+
+            // Long press → right click
+            if (e.touches.length === 1) {
+                longTimer = setTimeout(() => {
+                    if (!hasMoved) {
+                        send('click_right');
+                        if (navigator.vibrate) navigator.vibrate([8, 40, 8]);
+                        hasMoved = true; // suppress tap-click on release
+                    }
+                }, 520);
+            }
         }, { passive: false });
 
         pad.addEventListener('touchend', e => {
+            cancelLong();
+
+            if (!hasMoved) {
+                const dt = Date.now() - startTime;
+                if (dt < 230) {
+                    if (lastCount >= 2) {
+                        // 2-finger tap → right click
+                        send('click_right');
+                        if (navigator.vibrate) navigator.vibrate(10);
+                    } else {
+                        // 1-finger tap → left click
+                        send('click_left');
+                        if (navigator.vibrate) navigator.vibrate(4);
+                    }
+                }
+            }
+
             if (e.touches.length > 0) {
                 lx = e.touches[0].clientX;
                 ly = e.touches[0].clientY;
             }
-            lastTouchCount = e.touches.length;
+            lastCount = e.touches.length;
         });
 
         pad.addEventListener('touchmove', e => {
             if (e.cancelable) e.preventDefault();
-            if (e.touches.length !== lastTouchCount) {
-                lastTouchCount = e.touches.length;
+
+            // Finger count changed mid-gesture — reset reference point
+            if (e.touches.length !== lastCount) {
+                cancelLong();
+                lastCount = e.touches.length;
                 if (e.touches.length > 0) {
                     lx = e.touches[0].clientX;
                     ly = e.touches[0].clientY;
                 }
                 return;
             }
+
+            const cx = e.touches[0].clientX;
+            const cy = e.touches[0].clientY;
+
+            // Cancel long press once there's meaningful movement
+            if (!hasMoved && Math.hypot(cx - startX, cy - startY) > 4) {
+                hasMoved = true;
+                cancelLong();
+            }
+
             if (e.touches.length === 2) {
-                const cy = e.touches[0].clientY;
-                const dy = -(cy - ly) * 2.5;
-                if (Math.abs(dy) > 1) send('scroll', { y: dy });
-                ly = cy;
+                // 2-finger natural scroll
+                const dy = -(cy - ly) * 2.8;
+                const dx = -(e.touches[0].clientX - lx) * 2.8;
+                if (Math.abs(dy) > 0.4 || Math.abs(dx) > 0.4) send('scroll', { y: dy });
+                lx = cx; ly = cy;
             } else if (e.touches.length === 1) {
-                const cx = e.touches[0].clientX;
-                const cy = e.touches[0].clientY;
                 const dx = (cx - lx) * 2.0;
                 const dy = (cy - ly) * 2.0;
-                if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) send('mouse_move', { x: dx, y: dy });
+                if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) send('mouse_move', { x: dx, y: dy });
                 lx = cx; ly = cy;
             }
         }, { passive: false });
 
-        function setupSliderEvents() {
+        // ─── SLIDER DRAG GUARD ───────────────────────────────────────────────
+        let isDragging = false;
+
+        function setupSliders() {
             document.querySelectorAll('input[type=range]').forEach(sl => {
                 sl.addEventListener('touchstart', () => { isDragging = true; }, { passive: true });
-                sl.addEventListener('touchend', () => {
-                    setTimeout(() => { isDragging = false; }, 800);
-                }, { passive: true });
+                sl.addEventListener('touchend', () => { setTimeout(() => { isDragging = false; }, 700); }, { passive: true });
                 sl.addEventListener('mousedown', () => { isDragging = true; });
-                sl.addEventListener('mouseup', () => { setTimeout(() => { isDragging = false; }, 200); });
+                sl.addEventListener('mouseup', () => { setTimeout(() => { isDragging = false; }, 150); });
             });
         }
+        window.addEventListener('load', setupSliders);
 
-        window.addEventListener('load', setupSliderEvents);
-
+        // ─── MIXER ───────────────────────────────────────────────────────────
         async function loadMixer() {
             if (!ip) return;
             const list = document.getElementById('mixer-list');
-            list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-dimmer);font-size:14px;">Loading...</div>';
+            list.innerHTML = '<div class="empty-state">Loading...</div>';
             try {
                 const apps = await fetch(`http://${ip}/mixer`).then(r => r.json());
-                list.innerHTML = '';
+                if (!apps.length) {
+                    list.innerHTML = '<div class="empty-state">No active audio sessions</div>';
+                    return;
+                }
+                const card = document.createElement('div');
+                card.className = 'mix-list';
                 apps.forEach(app => {
-                    const div = document.createElement('div');
-                    div.className = 'mix-item';
+                    const row = document.createElement('div');
+                    row.className = 'mix-item';
                     const speakerSvg = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
                     const cpuSvg = '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>';
                     const iconHtml = app.icon
-                        ? `<img src="data:image/png;base64,${app.icon}" class="app-img" alt="">`
-                        : `<div class="app-ph"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${app.pid === -1 ? speakerSvg : cpuSvg}</svg></div>`;
-                    div.innerHTML = `
+                        ? `<img src="data:image/png;base64,${app.icon}" class="app-icon" alt="">`
+                        : `<div class="app-icon-ph"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${app.pid === -1 ? speakerSvg : cpuSvg}</svg></div>`;
+                    row.innerHTML = `
                         ${iconHtml}
-                        <div class="app-name">${app.name}</div>
-                        <input type="range" class="mix-vol" min="0" max="100" value="${app.vol}"
-                               oninput="send('set_vol', {id:${app.pid}, vol:parseInt(this.value)})">
+                        <div class="app-label">${app.name}</div>
+                        <input type="range" class="mix-range" min="0" max="100" value="${app.vol}"
+                               oninput="send('set_vol',{id:${app.pid},vol:parseInt(this.value)})">
                     `;
-                    list.appendChild(div);
+                    card.appendChild(row);
                 });
-                setupSliderEvents();
+                list.innerHTML = '';
+                list.appendChild(card);
+                setupSliders();
             } catch {
-                list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-dimmer);font-size:14px;">Disconnected</div>';
+                list.innerHTML = '<div class="empty-state">Disconnected</div>';
             }
         }
 
+        // ─── PING / STATE SYNC ────────────────────────────────────────────────
         let lastTitle = '';
-        let lastPlayingState = null;
+        let lastPlaying = null;
 
         async function ping() {
             if (!ip) return;
             try {
                 const res = await fetch(`http://${ip}/ping`).then(r => r.json());
                 document.getElementById('status-dot').classList.add('online');
+                document.getElementById('status-label').textContent = 'Connected';
 
                 const parts = res.window.split(' • ');
                 const title = parts[0] || 'Not Playing';
@@ -870,40 +991,41 @@
                 if (title !== lastTitle) {
                     lastTitle = title;
                     const artEl = document.getElementById('art');
-                    artEl.classList.add('changing');
+                    artEl.classList.add('fade');
                     setTimeout(() => {
                         document.getElementById('track').textContent = title;
                         document.getElementById('artist').textContent = artist;
                         if (res.cover) {
                             const url = `url('data:image/png;base64,${res.cover}')`;
                             artEl.style.backgroundImage = url;
-                            document.getElementById('cover-bg').style.backgroundImage = url;
-                            document.getElementById('cover-bg').style.opacity = '1';
+                            const bg = document.getElementById('cover-bg');
+                            bg.style.backgroundImage = url;
+                            bg.style.opacity = '1';
                         } else {
                             artEl.style.backgroundImage = '';
                             document.getElementById('cover-bg').style.opacity = '0';
                         }
-                        artEl.classList.remove('changing');
-                    }, 280);
+                        artEl.classList.remove('fade');
+                    }, 240);
                 }
 
-                if (res.playing !== lastPlayingState) {
-                    lastPlayingState = res.playing;
+                if (res.playing !== lastPlaying) {
+                    lastPlaying = res.playing;
                     const icon = document.getElementById('play-icon');
                     if (res.playing) {
                         icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-                        icon.setAttribute('fill', 'black');
                     } else {
                         icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
-                        icon.setAttribute('fill', 'black');
                     }
+                    icon.setAttribute('fill', 'black');
                 }
 
-                const sl = document.querySelector('.main-vol');
+                const sl = document.querySelector('.vol-range');
                 if (sl && !isDragging) sl.value = res.volume;
 
             } catch {
                 document.getElementById('status-dot').classList.remove('online');
+                document.getElementById('status-label').textContent = 'RemoteXS';
             }
         }
 
